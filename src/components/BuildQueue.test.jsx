@@ -30,4 +30,25 @@ describe("BuildQueue", () => {
     expect(html).toContain("Asteroid Mine"); // the row still renders
     expect(html).not.toContain("Assist");    // but no pointless hand-click button
   });
+
+  it("shows a recycle button per job once Resource Realignment is researched", () => {
+    runInAction(() => {
+      store.buildQueue.replace ? store.buildQueue.replace([]) : (store.buildQueue.length = 0);
+      store.buildQueue.push({ id: "asteroid_mine", count: 1, progress: 0, uid: 42 });
+      store.research.done.resource_realignment = true;
+    });
+    const html = renderToString(<BuildQueue />);
+    expect(html).toContain("qrecycle");
+    runInAction(() => { store.research.done.resource_realignment = false; });
+  });
+
+  it("has no recycle button before the tech is researched", () => {
+    runInAction(() => {
+      store.buildQueue.replace ? store.buildQueue.replace([]) : (store.buildQueue.length = 0);
+      store.research.done.resource_realignment = false;
+      store.buildQueue.push({ id: "asteroid_mine", count: 1, progress: 0, uid: 43 });
+    });
+    const html = renderToString(<BuildQueue />);
+    expect(html).not.toContain("qrecycle");
+  });
 });

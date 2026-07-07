@@ -4,13 +4,6 @@ Hand-off notes from the reveal/enable notify migration (the session that replace
 per-tick `checkMilestones` catalog scan with push-based reveal/enable maps). Ordered
 roughly by priority. Nothing here is urgent; the game builds and all tests pass.
 
-## Humans keep growing in population at -268.1°C
-
-The human population is supposed to increase every game-day, as defined in CONFIG.
-But it doesn't make sense for humans to keep growing indefinitely. We should add
-a HUMAN_GROWTH_STOP_TEMPERATURE entry in the CONFIG, perhaps selecting a value where
-humans would struggle.
-
 ## Fix the `skipStoryFlags` / `reachMainQuest` test helper
 It sets `flags[k]` but never populates `completedQuests`, so it doesn't mirror a real
 save (which persists `completedQuests`) and won't trigger quest-gated reveals. No

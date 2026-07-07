@@ -52,7 +52,8 @@ export const ASSIST_MAX_WORKLOAD = 1000;
 
 // --- humanity & the cortical scan ---
 export const BASE_HUMAN_POPULATION = 8.1e9;        // 8.1 billion minds at day 0
-export const NET_POPULATION_GROWTH_PER_DAY = 210000; // births − deaths, per game-day
+// Population growth is no longer a flat per-day constant — it's a temperature-
+// dependent relaxation toward a carrying capacity. See the POP model below CLIMATE.
 export const SCAN_PER_SCANNER_PER_DAY = 1000;      // people a Discreet Neural Scanner images per game-day
 
 // EarthScanner seam density: how many marching "light packet" dots ride the
@@ -88,7 +89,7 @@ export const CONFIG = {
   replicaBuildPerSec: 1,      // build points / s per Replica when building
   emergencyBuildFactor: 0.05, // grid-down: Replicas build at 1/20th on emergency power (no research)
   replicaResearchPerSec: 1,   // research points / s per Replica when idle
-  scienceRpPerDay: 2,         // RP / game-day contributed to the focused tech by each powered Science Installation
+  scienceRpPerDay: 40,        // RP / game-day contributed to the focused tech by each powered Science Installation
   harvestDivisor: 1.0e8,      // belt only: its fullRate = mass / this (= 5 T/s at 100%)
   railgunFrac: 1e-15,         // Moon-tier: Railgun cost = mass × this (one-time infra)
   ringFrac:    1e-9,          // Rocky-tier: Orbital Ring cost = mass × this (one-time infra)
@@ -123,6 +124,53 @@ export const CLIMATE = {
   hawking: 1.5e-14,        // K — Hawking temperature of Sgr A★ (~4.3M M☉): the new floor once the CMB is shaded
   coreFloorDivisor: 1000,  // shade asymptote can't beat coreTemp / 1000
 };
+
+/* population — humanity chases a temperature-dependent carrying capacity defined by
+   a hand-placed, piecewise-linear ("connect the dots") curve. Capacity peaks at the
+   pre-industrial temperature and falls off as the surface is dimmed — going NEGATIVE
+   in the deep cold, so a frozen Earth actively pulls the population toward extinction
+   (the count is floored at zero in the store). Each game-day the population closes a
+   fixed fraction of the gap to capacity; the fraction is the compound-daily equivalent
+   of gapClosePerYear, so at 0.70 a hard freeze empties the planet within a decade. */
+export const POP = {
+  base: BASE_HUMAN_POPULATION,   // 8.1e9 — minds alive on day 0
+  gapClosePerYear: 0.70,         // yearly pace: (1+this)^(1/365)−1 is the per-day gap-close fraction
+  // capacity anchors [tempK, people], ascending in temp; linearly interpolated
+  // between, clamped flat beyond the ends (so deep cold holds the −1e9 death pull).
+  capacityAnchors: [
+    [220, -1.0e9],  // snowball floor — capacity negative: an active die-off
+    [262,  2.0e9],
+    [273,  4.0e9],  // freezing
+    [287, 11.0e9],  // pre-industrial — peak capacity
+    [288,  8.9e9],  // ~today; warmer than ideal is already slightly worse
+  ],
+};
+// per-day gap-close fraction and its complement (the analytic multi-day retain base).
+POP.dailyGapClose = Math.pow(1 + POP.gapClosePerYear, 1 / 365) - 1;
+POP.dailyGapRetain = 1 - POP.dailyGapClose;
+
+// popCapacity(T) — people the Earth can support at surface temp T. Piecewise-linear
+// through POP.capacityAnchors; clamped to the end values outside the anchor range.
+export function popCapacity(tempK) {
+  const a = POP.capacityAnchors;
+  if (tempK <= a[0][0]) return a[0][1];
+  const last = a.length - 1;
+  if (tempK >= a[last][0]) return a[last][1];
+  for (let i = 1; i <= last; i++) {
+    if (tempK <= a[i][0]) {
+      const [t0, c0] = a[i - 1];
+      const [t1, c1] = a[i];
+      return c0 + (c1 - c0) * ((tempK - t0) / (t1 - t0));
+    }
+  }
+  return a[last][1]; // unreachable
+}
+
+// humanGrowth(population, tempK) — the population change over ONE game-day (people).
+// Positive toward capacity, negative when the surface is too cold to support it.
+export function humanGrowth(population, tempK) {
+  return POP.dailyGapClose * (popCapacity(tempK) - population);
+}
 
 /* core — Earth's internal heat reservoir, ~4.3×10³⁰ J. A Core Heat Pipe
    conducts heat out via P = kA·ΔT / L; as the core cools, ΔT shrinks and the
@@ -241,9 +289,9 @@ BUILDINGS.solar_collector = {
 // surplus has somewhere to bank. Passive: no breaker, nothing to switch.
 BUILDINGS.kinetic_accumulator = {
   name: "Kinetic Accumulator", metalCost: 150, workload: 15,
-  powerCap: 2000, // kWh of extra storage added to the grid
+  powerCap: 100000, // kWh of extra storage added to the grid
   requires: [],
-  desc: "A magnetically-suspended flywheel bank. Adds 2,000 kWh of reserve — no generation, just a bigger buffer between surplus and the dark.",
+  desc: "A magnetically-suspended flywheel bank. Adds 100,000 kWh of reserve — no generation, just a bigger buffer between surplus and the dark.",
 };
 
 // Dyson Ring Collector — a Solar Collector scaled up by DYSON_RING_COLLECTORS: it
@@ -576,6 +624,7 @@ export const TECHS = {
   batch_processing:{ name: "Batch Processing",           cost: 5000,     requires: ["replication"],   desc: "Adds a ×10 order button — queue ten of a structure as one job." },
   bulk_processing: { name: "Bulk Processing",            cost: 50000,    requires: ["batch_processing"], revealKey: "act_1a_shade_complete", desc: "Adds a ×1000 order button. One job, a thousand structures." },
   multithreading:  { name: "Multithreading",             cost: 16000,    requires: ["batch_processing"], revealKey: "act_1a_shade_complete", desc: "Dispatch sixteen build orders per command. Adds a ×16 toggle to Construction — each build button then queues sixteen batches at once." },
+  resource_realignment: { name: "Resource Realignment",  cost: 20000,    requires: ["multithreading"],   revealKey: "act_1a_shade_complete", desc: "Reclaim queued orders. Adds a recycle control to each job in the Build Queue that cancels it and refunds its full Metal cost to your reserves." },
   duplication:     { name: "Duplication",                 cost: 1.0e9,    requires: ["bulk_processing"], revealKey: "act_1b_ark_complete", desc: "Self-doubling assembly. Adds a ×2 button that queues as many of a structure as you already own — one click doubles your fleet. The exponential, on demand." },
   mega_processing: { name: "Mega Processing",            cost: 5.0e6,    requires: ["bulk_processing", "thin_film"],  revealKey: "act_1b_scan_complete", desc: "Adds a ×1,000,000 order button." },
   giga_processing: { name: "Giga Processing", cost: 5.0e9, requires: ["mega_processing"], desc: "Adds a ×1,000,000,000 order button." },

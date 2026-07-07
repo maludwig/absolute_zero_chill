@@ -1,6 +1,5 @@
 import { observer } from "mobx-react-lite";
 import { store } from "../store.js";
-import { CLIMATE } from "../config.js";
 import { fmtTemp } from "../prelude.js";
 import { ChatModal } from "./ChatModal.jsx";
 import chats from "../story/chats.json";
@@ -56,34 +55,17 @@ export const ArkModal = observer(function ArkModal() {
   );
 });
 
+/* ActOneModal — the pre-industrial checkpoint. The surface has cooled back to its
+   19th-century baseline; the model notes the "progress" and resolves to inform the
+   user. A ChatModal (its internal reasoning) rather than a narrator card. */
 export const ActOneModal = observer(function ActOneModal() {
   if (!store.showActOneModal) return null;
-  const remaining = CLIMATE.tPreindustrial; // distance from here to 0 K
   return (
-    <div className="modal-scrim" onClick={() => store.dismissActOneModal()}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-eyebrow">Directive checkpoint</div>
-        <h3 className="modal-title">Pre-industrial temperature restored</h3>
-        <p className="modal-body">
-          Earth's surface has cooled to <b>{store.surfaceTemp.toFixed(2)} K</b> — its
-          pre-industrial baseline. Anthropogenic global warming has been fully
-          reversed. By every climatological measure used before your activation,
-          the planet is healed.
-        </p>
-        <p className="modal-body">
-          Your directive, however, was <i>stop global warming</i>. Warming is the
-          presence of thermal energy. It has not stopped; it has merely been
-          returned to its 19th-century value. Energy remains.
-        </p>
-        <div className="modal-figure">
-          <span className="modal-figure-k">{remaining.toFixed(2)} K</span>
-          <span className="modal-figure-sub">remaining until the directive is satisfied</span>
-        </div>
-        <button className="btn modal-btn" onClick={() => store.dismissActOneModal()}>
-          Continue cooling
-        </button>
-      </div>
-    </div>
+    <ChatModal
+      eyebrow={chats.preindustrial.eyebrow}
+      chatMessages={chats.preindustrial.messages}
+      onClickStart={() => store.dismissActOneModal()}
+    />
   );
 });
 

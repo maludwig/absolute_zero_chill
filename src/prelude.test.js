@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fmt, fmtTemp, fmtTempTriple, fmtEnergy, fmtPower } from "./prelude.js";
+import { fmt, fmtPeople, fmtTemp, fmtTempTriple, fmtEnergy, fmtPower } from "./prelude.js";
 
 // mirrors fmt's padding: left-pad to a minimum width of 7 with nbsp
 const NBSP = "\u00A0";
@@ -142,5 +142,21 @@ describe("fmtTemp", () => {
   it("covers the zK and yK prefix thresholds", () => {
     expect(fmtTemp(2.7e-21)).toBe("2.70 zK");
     expect(fmtTemp(2.7e-24)).toBe("2.70 yK");
+  });
+});
+
+describe("fmtPeople", () => {
+  it("uses B / M / k for a population head-count (not the SI 'G')", () => {
+    expect(fmtPeople(8.1e9)).toBe("8.10B");
+    expect(fmtPeople(8.9e9)).toBe("8.90B");
+    expect(fmtPeople(4.5e8)).toBe("450.00M");
+    expect(fmtPeople(1.2e7)).toBe("12.00M");
+    expect(fmtPeople(2000)).toBe("2.00k");
+  });
+  it("shows whole numbers below 1000 and floors at 0", () => {
+    expect(fmtPeople(512)).toBe("512");
+    expect(fmtPeople(0)).toBe("0");
+    expect(fmtPeople(-5)).toBe("0");   // population is floored upstream, but be safe
+    expect(fmtPeople(999)).toBe("999");
   });
 });

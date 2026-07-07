@@ -17,7 +17,7 @@ export function SaveLoad() {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "soletta-save-" + stamp + ".json";
+    a.download = "abs_zero_chill_" + stamp + ".json";
     document.body.appendChild(a);
     a.click();
     a.remove();

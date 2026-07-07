@@ -17,6 +17,9 @@ import { DISABLE_AUTOSCROLL } from "../config.js";
                                     one at a time. Each query is { search, results }, where
                                     results is [{ title, snippet }] — a mock search result
                                     list shown under the query's tool-call line.
+                      "user_timed_out" — auto: a spinner waits `spinMs` (default 2.2s), then
+                                    flips to a flat timeout notice (`text`). No button — the
+                                    machine is simply waiting on a reply that never comes.
                       "assistant" — auto-streams `text` on reveal (no button)
      onClickStart — called when the final START button is clicked
 
@@ -28,6 +31,7 @@ const STREAM_MS = 50;       // per-word delay while streaming think text
 const ASSISTANT_MS = 45;    // slightly faster for the assistant reply
 const USER_MS = 500;        // abysmally slow — the human is typing
 const SEARCH_MS = 400;      // delay between revealed search queries
+const TIMEOUT_MS = 2200;    // how long the spinner waits before the user "times out"
 
 // char-index of the end of each word, so text.slice(0, ends[i]) preserves all
 // original whitespace and newlines between words.
@@ -151,9 +155,41 @@ function SearchBlock({ msg, onComplete }) {
   );
 }
 
+// user_timed_out — the assistant waits on a reply that will never come: a spinner
+// for a couple of seconds, then a flat timeout notice. Auto-runs on reveal (no
+// click — the machine is just waiting), then advances. `spinMs` / `text` / `waitText`
+// are overridable from the message for tuning and tests.
+function TimeoutBlock({ msg, onComplete }) {
+  const [done, setDone] = useState(false);
+  const timerRef = useRef(null);
+  const doneRef = useRef(onComplete);
+  doneRef.current = onComplete;
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => {
+      setDone(true);
+      doneRef.current?.();
+    }, msg.spinMs ?? TIMEOUT_MS);
+    return () => clearTimeout(timerRef.current);
+  }, []);
+
+  const timeoutText = msg.text || "Timed Out: No response from user after 10 days";
+  const waitText = msg.waitText || "Awaiting user response";
+  return (
+    <div className="pre-block pre-timeout">
+      {msg.label && <div className="pre-label">{msg.label}</div>}
+      {done ? (
+        <p className="pre-timeout-msg">{timeoutText}</p>
+      ) : (
+        <p className="pre-timeout-wait"><span className="pre-spinner" aria-hidden="true" />{waitText}</p>
+      )}
+    </div>
+  );
+}
+
 // does this message pause the reveal run (waits for a click) or flow through?
 function isBlocking(kind) {
-  return kind === "think" || kind === "search" || kind === "assistant" || kind === "user";
+  return kind === "think" || kind === "search" || kind === "assistant" || kind === "user" || kind === "user_timed_out";
 }
 
 export function ChatModal({ eyebrow, chatMessages, onClickStart }) {
@@ -213,6 +249,9 @@ export function ChatModal({ eyebrow, chatMessages, onClickStart }) {
           }
           if (msg.kind === "search") {
             return <SearchBlock key={i} msg={msg} onComplete={() => advanceFrom(i)} />;
+          }
+          if (msg.kind === "user_timed_out") {
+            return <TimeoutBlock key={i} msg={msg} onComplete={() => advanceFrom(i)} />;
           }
           if (msg.kind === "assistant") {
             return <StreamBlock key={i} msg={msg} auto stepMs={ASSISTANT_MS}

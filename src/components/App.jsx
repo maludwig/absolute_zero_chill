@@ -101,7 +101,7 @@ export const App = observer(function App() {
   }, []);
 
   return (
-    <div className={"wrap" + (store.powerFailed ? " power-failed" : "")}>
+    <div className={"wrap" + (store.powerFailed ? " power-failed" : store.powerDraining ? " power-draining" : "")}>
       <StatusBar />
       <Header />
       <Resources />

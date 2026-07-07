@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStore, SAVE_VERSION, TELEMETRY_CAP, TELEMETRY_SLACK, LOG_CAP } from "./store.js";
-import { CONFIG, CLIMATE, BODIES, BUILDINGS, TECHS, IDEAS, sectionForBuilding, LOGISTICS_PLAN } from "./config.js";
+import { CONFIG, CLIMATE, POP, popCapacity, BODIES, BUILDINGS, TECHS, IDEAS, sectionForBuilding, LOGISTICS_PLAN } from "./config.js";
 import { LUT, MAX_WEDGE_STARS, BIN_LY } from "./galaxy/lut.js";
 import { EXPLORE_DAYS_PER_SEC, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, systemReserve, DRIVER_MINED_GATE } from "./explore.js";
 import { STORY_CHAIN } from "./story.js";
@@ -119,6 +119,36 @@ describe("build queue + assist", () => {
     expect(s.owned.asteroid_mine).toBe(1);
     expect(s.buildQueue.length).toBe(0);
   });
+
+  it("cancelBuild refunds the job's full Metal cost and removes it from the queue", () => {
+    const s = createStore();
+    const unit = BUILDINGS.asteroid_mine.metalCost;
+    s.metal = unit * 3;
+    s.enqueue("asteroid_mine", 3);        // spends all the metal, one job of 3
+    expect(s.metal).toBe(0);
+    expect(s.buildQueue.length).toBe(1);
+    s.cancelBuild(s.buildQueue[0].uid);
+    expect(s.metal).toBe(unit * 3);       // full cost returned
+    expect(s.buildQueue.length).toBe(0);  // job gone
+  });
+
+  it("cancelBuild refunds even a partially-built job in full (labour is forfeit, Metal is not)", () => {
+    const s = createStore();
+    const unit = BUILDINGS.asteroid_mine.metalCost;
+    s.metal = unit;
+    s.enqueue("asteroid_mine", 1);
+    s.buildQueue[0].progress = BUILDINGS.asteroid_mine.workload / 2; // half-built
+    s.cancelBuild(s.buildQueue[0].uid);
+    expect(s.metal).toBe(unit);           // still the full refund
+    expect(s.owned.asteroid_mine || 0).toBe(0); // no structure was produced
+  });
+
+  it("cancelBuild is a no-op for an unknown uid", () => {
+    const s = createStore();
+    s.metal = 100;
+    s.cancelBuild(123456);
+    expect(s.metal).toBe(100);
+  });
 });
 
 describe("power grid", () => {
@@ -128,6 +158,20 @@ describe("power grid", () => {
     s.owned.replica = 10;
     expect(s.powerNet).toBeCloseTo(-10 * CONFIG.replicaPowerKw, 6); // −238 kW at 23.8 each
     expect(CONFIG.replicaPowerKw).toBe(23.8);
+  });
+
+  it("powerDraining is true on a deficit, false when balanced, charging, or already failed", () => {
+    const s = createStore();
+    expect(s.powerDraining).toBe(false);          // net-zero at start
+    s.owned.replica = 10;                         // draw with no generation → deficit
+    expect(s.powerNet).toBeLessThan(0);
+    expect(s.powerDraining).toBe(true);
+    s.powerFailed = true;                         // once blacked out, it's failure, not draining
+    expect(s.powerDraining).toBe(false);
+    s.powerFailed = false;
+    s.owned.solar_collector = 50; s.breakerOn.solar_collector = true; // ample generation
+    expect(s.powerNet).toBeGreaterThan(0);
+    expect(s.powerDraining).toBe(false);          // charging, not draining
   });
 
   it("nets generation against draw; a lone Collector runs a Mine with margin", () => {
@@ -221,7 +265,7 @@ describe("power grid", () => {
     const s = createStore();
     const base = s.powerCap; // onboard reserve only
     s.owned.kinetic_accumulator = 2;
-    expect(s.powerCap).toBe(base + 2 * 2000); // +2,000 kWh each
+    expect(s.powerCap).toBe(base + 2 * BUILDINGS.kinetic_accumulator.powerCap); // +powerCap kWh each
     expect(s.powerNet).toBe(0);               // storage adds no generation or draw
     // a bigger buffer means a given deficit takes proportionally longer to black out
     s.unpack("asteroid_mine"); // −10 kW, on top of the 2 accumulators (cap = base + 4000)
@@ -417,7 +461,7 @@ describe("infrastructure buildings (Construction Logistics, Science Installation
 describe("Science Installation research", () => {
   // give the grid enough generation that a single tick never blacks out
   const powered = (s) => { s.owned.solar_collector = 5; s.breakerOn.solar_collector = true; s.power = s.powerCap; };
-  it("a powered installation adds 2 RP/game-day to the focused tech", () => {
+  it("a powered installation adds scienceRpPerDay RP/game-day to the focused tech", () => {
     const s = createStore();
     powered(s);
     s.owned.science_installation = 1;
@@ -425,9 +469,9 @@ describe("Science Installation research", () => {
     s.research.selected = "radar"; // cost 1000 — won't finish this tick
     const before = s.research.progress.radar || 0;
     s.tick(0.2); // 0.2s × EXPLORE_DAYS_PER_SEC(5) = 1 game-day
-    expect(s.research.progress.radar - before).toBeCloseTo(2, 6);
+    expect(s.research.progress.radar - before).toBeCloseTo(CONFIG.scienceRpPerDay, 6);
   });
-  it("scales linearly — 9 installations → 18 RP/game-day", () => {
+  it("scales linearly — 9 installations → 9× the per-installation rate", () => {
     const s = createStore();
     powered(s);
     s.owned.science_installation = 9;
@@ -435,7 +479,7 @@ describe("Science Installation research", () => {
     s.research.selected = "radar";
     const before = s.research.progress.radar || 0;
     s.tick(0.2);
-    expect(s.research.progress.radar - before).toBeCloseTo(18, 6);
+    expect(s.research.progress.radar - before).toBeCloseTo(9 * CONFIG.scienceRpPerDay, 6);
   });
   it("contributes nothing while unpowered or with no focused tech", () => {
     const s = createStore();
@@ -758,12 +802,61 @@ describe("framejack easter egg", () => {
 });
 
 describe("cortical scan", () => {
-  it("starts at 8.1B population, growing 210,000/game-day", () => {
+  it("starts at 8.1B and grows toward the start-temperature capacity", () => {
     const s = createStore();
     expect(s.humanPopulation).toBe(8.1e9);
     expect(s.peopleScanned).toBe(0);
-    for (let i = 0; i < 10; i++) s.tick(0.2); // 10 game-days at ×1
-    expect(s.humanPopulation).toBeCloseTo(8.1e9 + 210000 * 10, 0);
+    expect(s.surfaceTemp).toBe(CLIMATE.tStart);
+    const cap = popCapacity(CLIMATE.tStart); // 8.9B, clamped from the 288K anchor
+    const before = s.humanPopulation;
+    s.tick(0.2);
+    expect(s.humanPopulation).toBeGreaterThan(before); // 8.1B climbing toward 8.9B
+    expect(s.humanPopulation).toBeLessThan(cap);        // still below capacity
+  });
+
+  it("population declines on a frozen Earth and is pulled to 0 in the deep cold", () => {
+    const s = createStore();
+    // freezing (cap 4B < 8.1B): a die-off, but still plenty of people after a few weeks
+    let prev = s.humanPopulation;
+    for (let i = 0; i < 30; i++) { s.surfaceTemp = 273; s.tick(0.2); }
+    expect(s.humanPopulation).toBeLessThan(prev);
+    expect(s.humanPopulation).toBeGreaterThan(0);
+    // deep cold (cap −1B): population is pulled through zero and floored there
+    for (let i = 0; i < 2000; i++) { s.surfaceTemp = 100; s.tick(0.2); }
+    expect(s.humanPopulation).toBe(0);
+  });
+
+  it("never goes negative even though deep-cold capacity is negative", () => {
+    const s = createStore();
+    s.humanPopulation = 5e8;
+    for (let i = 0; i < 600; i++) {
+      s.surfaceTemp = 50; // capacity −1e9
+      s.tick(0.2);
+      expect(s.humanPopulation).toBeGreaterThanOrEqual(0);
+    }
+    expect(s.humanPopulation).toBe(0);
+  });
+
+  it("grows toward — and never past — capacity when the climate is ideal", () => {
+    const s = createStore();
+    const cap = popCapacity(CLIMATE.tPreindustrial); // 11B peak
+    let prev = s.humanPopulation;
+    for (let i = 0; i < 300; i++) {
+      s.surfaceTemp = CLIMATE.tPreindustrial;
+      s.tick(0.2);
+      expect(s.humanPopulation).toBeGreaterThan(prev);       // climbing toward the peak
+      expect(s.humanPopulation).toBeLessThanOrEqual(cap + 1); // never overshoots it
+      prev = s.humanPopulation;
+    }
+  });
+
+  it("banks scanned minds when the population dies back, clamping scanFrac at 1", () => {
+    const s = createStore();
+    s.peopleScanned = s.humanPopulation;   // everyone imaged
+    expect(s.scanFrac).toBeCloseTo(1, 6);
+    for (let i = 0; i < 20; i++) { s.surfaceTemp = 240; s.tick(0.2); } // capacity ~0.4B ≪ pop
+    expect(s.humanPopulation).toBeLessThan(s.peopleScanned); // more banked minds than living people
+    expect(s.scanFrac).toBe(1);            // still reads as fully scanned, not >100%
   });
 
   it("a powered scanner images 1000 people per game-day", () => {

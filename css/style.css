@@ -34,6 +34,9 @@
   --good-off:hsl(from var(--good-src) h 0% l);
   --warn-off:hsl(from var(--warn-src) h 0% l);
   --danger-off:hsl(from var(--danger-src) h 0% l);
+  /* ambient background tint while the reserve is draining (deficit, pre-failure):
+     a very dark amber that keeps --warn's hue/saturation. */
+  --battery-drain-bg:hsl(from var(--warn-src) h s 4%);
   /* card surfaces — the two literal card colours, tokenised so they grey on failure
      like everything else (the default card border already rides on --line) */
   --card-bg-src:#081722;     --card-bg:var(--card-bg-src);
@@ -265,7 +268,13 @@ h1 small.hd-year{color:var(--dim);letter-spacing:.18em;margin-top:3px;font-varia
 .qbar{grid-column:1/2;height:8px;background:#04121b;border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .qbar.small{height:6px}
 .qbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--build),#9ff0ff);transition:width .18s linear}
-.qrow .assist{grid-row:1/3;grid-column:2;align-self:center}
+.qrow .qactions{grid-row:1/3;grid-column:2;align-self:center;display:flex;align-items:center;gap:7px}
+/* Resource Realignment: a small circular button to cancel a job and reclaim its Metal */
+.qrecycle{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;
+  padding:0;border-radius:50%;border:1px solid var(--line);background:#04121b;color:var(--dim);
+  cursor:pointer;transition:color .15s ease,border-color .15s ease}
+.qrecycle:hover{color:var(--build);border-color:var(--build)}
+.qrecycle svg{display:block}
 .empty{font-size:12px;color:var(--dim);font-style:italic;padding:6px 0}
 
 /* depletions — per-body remaining-mass bars, each tinted with the body's palette */
@@ -411,6 +420,16 @@ footer{margin-top:22px;font-size:10px;color:var(--dim);letter-spacing:.1em;
 /* assistant: what the user actually sees — cheerful, oblivious */
 .pre-assistant{border-color:#2a4a56;background:#071a24;margin-left:5rem}
 .pre-assistant p{color:var(--frost)}
+/* user_timed_out: the assistant patiently waiting on a reply that will never come.
+   Amber "awaiting" with a spinner, resolving to a danger-red timeout notice. */
+.pre-timeout{border-color:#5a4a2a;background:#0f0a02}
+.pre-timeout .pre-timeout-wait,.pre-timeout .pre-timeout-msg{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;margin:0}
+.pre-timeout .pre-timeout-wait{display:flex;align-items:center;gap:9px;color:#e0b876;font-style:italic}
+.pre-timeout .pre-timeout-msg{color:var(--danger);font-weight:600}
+.pre-spinner{display:inline-block;width:13px;height:13px;flex:none;border:2px solid #4a3c1e;
+  border-top-color:#e0b876;border-radius:50%;animation:pre-spin .7s linear infinite}
+@keyframes pre-spin{to{transform:rotate(360deg)}}
 /* streaming text: preserve whitespace/newlines from the template literal */
 .pre-stream{white-space:pre-wrap;margin:0}
 /* blinking cursor shown while streaming */
@@ -542,6 +561,13 @@ footer{margin-top:22px;font-size:10px;color:var(--dim);letter-spacing:.1em;
 }
 .pg.store{color:var(--build)}
 
+/* while the reserve is draining (deficit but not yet failed) the ambient background
+   warms to amber — a warning before the red-alarm failure state. Same :has() reach
+   up to body as power-failed; --warn stays live here (tokens aren't greyed). */
+body:has(.wrap.power-draining){
+  background:radial-gradient(120% 90% at 50% -10%, var(--warn) 0%, var(--battery-drain-bg) 55%, var(--battery-drain-bg) 100%);
+  background-repeat:no-repeat;
+}
 /* the ambient background goes red-alarm during a failure. body is an ancestor of
    .wrap (React mounts into #react-root > .wrap), so :has() reaches up to it — no
    JS/mount change needed. Literal reds, unaffected by the greying above. */

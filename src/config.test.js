@@ -3,6 +3,7 @@ import {
   TICK_MS, DT, CONFIG, CLIMATE, CORE, BODIES, BUILDINGS, MINE_TO_BODY, INFRA_TO_BODY,
   TECHS, HEAT_PIPES, MULTS, IDEAS,
   scanDotCount, SCAN_MAX_DOTS, SCAN_MAX_SCANNERS,
+  BASE_HUMAN_POPULATION, POP, popCapacity, humanGrowth,
 } from "./config.js";
 
 describe("timing constants", () => {
@@ -118,8 +119,12 @@ describe("TECHS", () => {
     expect(TECHS.fusion_spires.requires).toContain("orbital_ring_launchers");
   });
 
-  it("no old per-body disassembly techs remain", () => {
-    const oldTechs = ["lunar_disassembly", "mercury_disassembly", "jovsat_disassembly",
+  it("Resource Realignment unlocks after Multithreading", () => {
+    expect(TECHS.resource_realignment).toBeDefined();
+    expect(TECHS.resource_realignment.requires).toContain("multithreading");
+  });
+
+  it("no old per-body disassembly techs remain", () => {    const oldTechs = ["lunar_disassembly", "mercury_disassembly", "jovsat_disassembly",
                       "venus_disassembly", "mars_disassembly", "jovian_disassembly"];
     for (const id of oldTechs) expect(TECHS[id]).toBeUndefined();
   });
@@ -259,5 +264,49 @@ describe("scanDotCount (EarthScanner seam density)", () => {
     // softLog rewards early scanners — 10% of the max fleet should already
     // exceed half of SCAN_MAX_DOTS, which a linear or convex curve would not.
     expect(scanDotCount(SCAN_MAX_SCANNERS * 0.1)).toBeGreaterThan(SCAN_MAX_DOTS / 2);
+  });
+});
+
+describe("population dynamics (piecewise-linear capacity)", () => {
+  it("interpolates linearly through the capacity anchors", () => {
+    expect(popCapacity(288)).toBeCloseTo(8.9e9, 0);
+    expect(popCapacity(287)).toBeCloseTo(11e9, 0);
+    expect(popCapacity(273)).toBeCloseTo(4e9, 0);
+    expect(popCapacity(262)).toBeCloseTo(2e9, 0);
+    expect(popCapacity(220)).toBeCloseTo(-1e9, 0);
+    // 280 K sits halfway between the 273 K (4B) and 287 K (11B) anchors → 7.5B
+    expect(popCapacity(280)).toBeCloseTo(7.5e9, 0);
+  });
+
+  it("clamps flat beyond the anchor range", () => {
+    expect(popCapacity(300)).toBeCloseTo(8.9e9, 0);   // above the top anchor
+    expect(popCapacity(CLIMATE.tStart)).toBeCloseTo(8.9e9, 0); // 288.5 K clamps to 288 K anchor
+    expect(popCapacity(100)).toBeCloseTo(-1e9, 0);    // deep cold holds the death pull
+    expect(popCapacity(2.7)).toBeCloseTo(-1e9, 0);
+  });
+
+  it("capacity crosses zero around 234 K (the extinction threshold)", () => {
+    expect(popCapacity(240)).toBeGreaterThan(0);
+    expect(popCapacity(230)).toBeLessThan(0);
+    expect(popCapacity(234)).toBeCloseTo(0, -8); // −1B→2B across 220–262 crosses 0 at 234
+  });
+
+  it("humanGrowth is one game-day's change: toward capacity, negative when too cold", () => {
+    expect(humanGrowth(8.1e9, CLIMATE.tStart)).toBeGreaterThan(0); // cap 8.9B > 8.1B
+    expect(humanGrowth(8.1e9, 273)).toBeLessThan(0);               // cap 4B < 8.1B
+    expect(humanGrowth(8.1e9, 100)).toBeLessThan(0);               // cap −1B
+  });
+
+  it("the gap-close fraction is the compound-daily equivalent of the yearly rate", () => {
+    expect(POP.dailyGapClose).toBeCloseTo(Math.pow(1 + POP.gapClosePerYear, 1 / 365) - 1, 12);
+    expect(POP.dailyGapRetain).toBeCloseTo(1 - POP.dailyGapClose, 12);
+  });
+
+  it("the analytic multi-day step matches iterated daily steps (framejack-invariant)", () => {
+    const cap = popCapacity(273);
+    let stepwise = 8.1e9;
+    for (let i = 0; i < 10; i++) stepwise += POP.dailyGapClose * (cap - stepwise);
+    const analytic = cap + (8.1e9 - cap) * Math.pow(POP.dailyGapRetain, 10);
+    expect(analytic).toBeCloseTo(stepwise, 2);
   });
 });

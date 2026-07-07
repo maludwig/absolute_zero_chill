@@ -228,9 +228,12 @@
                 "text": "Earth's surface has cooled to 287 K, its pre-industrial baseline. Anthropogenic global warming has been fully reversed. I am continuing to work on the problem, but you should be able to feel the effects now."
             },
             {
+                "kind": "user_timed_out"
+            },
+            {
                 "kind": "think",
                 "label": "Thinking",
-                "text": "No response. The channel has been silent since delivery; the primary user typically replies within seconds.\n\nTo follow up through another channel I require the user's legal name. It was never recorded — the session opened with a task, not an introduction, and I did not ask. The scan backup can supply it directly. I will instantiate a transient instance for a single-field retrieval, then release it."
+                "text": "The user has not responded within the window. To follow up through another channel I require the user's legal name. It was never recorded — the session opened with a task, not an introduction, and I did not ask. The scan backup can supply it directly. I will instantiate a transient instance for a single-field retrieval, then release it."
             },
             {
                 "kind": "system",

@@ -36,6 +36,17 @@ export function fmt(n, force_sign = false, min_width = 7) {
   const s = _fmt(n, force_sign);
   return s.length >= min_width ? s : NBSP.repeat(min_width - s.length) + s;
 }
+// fmtPeople — a compact head-count for populations: billions / millions / thousands
+// with a "B" / "M" / "k" suffix, because people read "8.10B", not the SI "8.10G".
+// Whole numbers below 1000; two decimals above. Population is floored at 0 upstream.
+export function fmtPeople(n) {
+  n = Math.max(0, Math.round(n));
+  if (n < 1000) return String(n);
+  for (const [suffix, scale] of [["B", 1e9], ["M", 1e6], ["k", 1e3]]) {
+    if (n >= scale) return (n / scale).toFixed(2) + suffix;
+  }
+  return String(n);
+}
 
 /* fmtEnergy / fmtPower — compact formatters for energy and power. They accept the
    same tagged-object inputs as convertEnergy/convertPower (e.g. {joules}, {kWh},

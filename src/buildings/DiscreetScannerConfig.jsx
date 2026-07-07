@@ -1,7 +1,7 @@
 import { observer } from "mobx-react-lite";
 import { store } from "../store.js";
 import { BUILDINGS, scanDotCount } from "../config.js";
-import { FmtValue } from "../components/FmtValue.jsx";
+import { fmtPeople } from "../prelude.js";
 import { EarthScanner } from "../earthScanner/EarthScanner.jsx";
 
 /* Config UI for the Discreet Neural Scanner, rendered inside its Construction card
@@ -20,7 +20,7 @@ export const DiscreetScannerConfig = observer(function DiscreetScannerConfig() {
     <div className="card-config scan-config">
       <div className="cfg-head">
         <span className="cfg-label">{pct}% scanned</span>
-        <span className="cfg-value"><FmtValue value={store.peopleScanned} /> / <FmtValue value={store.humanPopulation} /></span>
+        <span className="cfg-value">{fmtPeople(store.peopleScanned)} / {fmtPeople(store.humanPopulation)}</span>
       </div>
       <div className="scan-globe">
         <EarthScanner

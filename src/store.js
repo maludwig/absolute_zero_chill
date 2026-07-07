@@ -6,7 +6,7 @@ import { makeAutoObservable, toJS } from "mobx";
 import { fmt } from "./prelude.js";
 import {
   CONFIG, BODIES, BUILDINGS, GRID_BUILDINGS, MINE_TO_BODY, INFRA_TO_BODY, TECHS, HEAT_PIPES, CLIMATE, CORE, IDEAS,
-  BASE_HUMAN_POPULATION, NET_POPULATION_GROWTH_PER_DAY, SCAN_PER_SCANNER_PER_DAY, LOGISTICS_PLAN,
+  BASE_HUMAN_POPULATION, POP, popCapacity, SCAN_PER_SCANNER_PER_DAY, LOGISTICS_PLAN,
 } from "./config.js";
 import { wedgeStars, MAX_WEDGE_STARS } from "./galaxy/lut.js";
 import { seededFrac, heardFrac } from "./galaxy/waves.js";
@@ -27,7 +27,7 @@ import { HOURS_PER_DAY } from "./power_helpers.js";
    exhaustive list of persistent fields (everything observable, plus the
    non-reactive `flags` guard map) — getters, actions, and read-helpers are
    deliberately excluded. A save is { version, savedAt, state: {…STATE_KEYS} }. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /* Perf caps. Both the telemetry event stream and the narrative log are otherwise
    append-only and were the cause of a late-game slowdown: over an hour of auto-build
@@ -49,7 +49,7 @@ const STATE_KEYS = [
   "inventory", "power", "powerFailed", "breakerOn", "buildingMaxOverrides",
   "buildQueue", "logistics", "multithread", "devFramejack", "_uid", "research", "philosophy", "galaxy", "flags",
   "showPreludeModal", "showActOneModal", "showAct1CompleteModal", "showActTwoModal", "showUserMatrixModal", "showArkModal", "showFinaleModal", "humanVessels", "shadeDamage",
-  "surfaceTemp", "coreHeat", "explore", "log", "_logId", "telemetry", "peopleScanned",
+  "surfaceTemp", "coreHeat", "explore", "log", "_logId", "telemetry", "peopleScanned", "humanPopulation",
   "currentQuestKey", "completedQuests",
 ];
 
@@ -205,6 +205,7 @@ export function createStore() {
       humanVessels: 0,           // float; displayed as ceil() — integer ships
       shadeDamage: 0,            // accumulator so shade destruction stays integer
       peopleScanned: 0,          // running total imaged by Discreet Neural Scanners
+      humanPopulation: BASE_HUMAN_POPULATION, // people alive; relaxes toward popCapacity(surfaceTemp) each tick
       surfaceTemp: CLIMATE.tStart, // K, a state variable that relaxes each tick
       coreHeat: CORE.heat0,      // J, drained by Core Heat Pipes
       explore: freshExploreState(), // Act III — the interstellar frontier (parallel systems)
@@ -349,6 +350,9 @@ export function createStore() {
         return cap;
       },
       get powerFrac() { return this.powerCap > 0 ? this.power / this.powerCap : 0 },
+      // draining: consuming more than we generate, so the reserve is falling — but the
+      // breaker hasn't tripped yet. The amber "warning" state before a red power failure.
+      get powerDraining() { return this.powerNet < 0 && !this.powerFailed; },
       // Act III: Insight flows from Matrioshka Brains, per game-day, into the focused Idea.
       // Sol's Brain is a constant trickle; the galaxy adds one Brain per HEARD star
       // (a star whose seeded mind's signal has completed the light round-trip to Sol).
@@ -381,9 +385,13 @@ export function createStore() {
 
       // Act II: humans always field a whole number of ships; MAC guns thin them.
       get humanShips() { return Math.ceil(this.humanVessels); },
-      // world population grows steadily from 8.1B; the scan races it (and loses, for now)
-      get humanPopulation() { return BASE_HUMAN_POPULATION + NET_POPULATION_GROWTH_PER_DAY * this.explore.day; },
-      get scanFrac() { const p = this.humanPopulation; return p > 0 ? this.peopleScanned / p : 0; },
+      // the carrying capacity the population is currently chasing (people the Earth
+      // can support now) — clamped ≥ 0 for display; the raw curve goes negative in
+      // the deep cold, which the tick uses to pull the population toward extinction.
+      get popCapacity() { return Math.max(0, popCapacity(this.surfaceTemp)); },
+      // scan fraction: imaged minds are BANKED, so if the population later dies back
+      // below peopleScanned the count stays put — clamp the ratio at 1 for display.
+      get scanFrac() { const p = this.humanPopulation; return p > 0 ? Math.min(1, this.peopleScanned / p) : 0; },
       // Whole-queue completion, weighted by workload: Σ(work done) / Σ(total work).
       // A huge job early on dominates a tiny job that's nearly done — the bar tracks
       // total effort remaining, not job count. 0 when the queue is empty.
@@ -845,6 +853,20 @@ export function createStore() {
         this.resolveBuilds();
       },
 
+      // Resource Realignment: cancel a queued job and return the Metal it cost to
+      // build (the full unit cost × count — the amount spent up front at enqueue).
+      // Build progress (labour) is forfeit; only the Metal comes back.
+      cancelBuild(uid) {
+        const i = this.buildQueue.findIndex((j) => j.uid === uid);
+        if (i < 0) return;
+        const job = this.buildQueue[i];
+        const refund = BUILDINGS[job.id].metalCost * job.count;
+        this.metal += refund;
+        this.buildQueue.splice(i, 1);
+        this.pushTelemetry({ type: "action", action: "cancel_build", building_id: job.id, job_count: job.count, ...this._rates() });
+        this.pushLog(`Build order cancelled — ${fmt(refund)} T of Metal reclaimed.`, "ok");
+      },
+
       selectResearch(id) {
         if (!TECHS[id] || !this.techUnlocked(id) || this.techDone(id)) return;
         this.research.selected = this.research.selected === id ? null : id;
@@ -1156,6 +1178,15 @@ export function createStore() {
         // so the Year display ticks up through Acts I–II, not just in exploration.
         const daysThisTick = EXPLORE_DAYS_PER_SEC * dt;
 
+        // human population: chase the carrying capacity of the CURRENT surface temp,
+        // closing POP.gapClosePerYear of the gap per game-year. Analytic multi-day step
+        // (retain^days) — framejack-invariant and identical to the daily recurrence at
+        // whole-day steps. Floored at 0: deep-cold capacity is negative, so a frozen
+        // Earth pulls the population down through zero and it stays there.
+        const popCap = popCapacity(this.surfaceTemp);
+        this.humanPopulation = Math.max(0,
+          popCap + (this.humanPopulation - popCap) * Math.pow(POP.dailyGapRetain, daysThisTick));
+
         // Insight: the focused Idea fills from the Brains' Insight flow. The galaxy's
         // rate ramps within a step as heard signals return, so we integrate the rate
         // trapezoidally — average of the rate at the step's start and end. This is
@@ -1168,8 +1199,9 @@ export function createStore() {
         this.explore.day += daysThisTick;
 
         // Cortical scan: each Discreet Neural Scanner images SCAN_PER_SCANNER_PER_DAY
-        // people per game-day while powered, accumulating toward the (ever-growing)
-        // world population. A tripped breaker stops the scan.
+        // people per game-day while powered, accumulating toward the live world
+        // population. A tripped breaker stops the scan. Imaged minds are banked, so
+        // if the population later dies back the running total is not clawed back.
         const scanners = this.breakerOn.discreet_neural_scanner ? (this.owned.discreet_neural_scanner || 0) : 0;
         if (scanners > 0 && this.peopleScanned < this.humanPopulation) {
           const extra = scanners * SCAN_PER_SCANNER_PER_DAY * daysThisTick;

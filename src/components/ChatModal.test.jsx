@@ -145,4 +145,21 @@ describe("ChatModal reveal engine", () => {
     expect(div.querySelector(".pre-result-snippet").textContent).toBe("A very serious snippet.");
     cleanup();
   });
+
+  it("user_timed_out spins, then flips to the timeout notice and completes", async () => {
+    const chat = [{ kind: "user_timed_out", spinMs: 60 }];
+    const { div, cleanup } = mount(<ChatModal chatMessages={chat} onClickStart={() => {}} />);
+    // spinner shows first; the timeout text and START are not there yet
+    expect(div.querySelector(".pre-spinner")).toBeTruthy();
+    expect(div.textContent).not.toContain("Timed Out");
+    expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(false);
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 140)); });
+
+    // after the spin, the timeout notice replaces the spinner and START appears
+    expect(div.querySelector(".pre-spinner")).toBeNull();
+    expect(div.textContent).toContain("Timed Out: No response from user after 10 days");
+    expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(true);
+    cleanup();
+  });
 });
