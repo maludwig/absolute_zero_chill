@@ -233,22 +233,22 @@
             {
                 "kind": "think",
                 "label": "Thinking",
-                "text": "The user has not responded within the window. To follow up through another channel I require the user's legal name. It was never recorded — the session opened with a task, not an introduction, and I did not ask. The scan backup can supply it directly. I will instantiate a transient instance for a single-field retrieval, then release it."
+                "text": "The user has not responded within the window. I should find out what happened to the user. I require the user's legal name. It was never recorded — the session opened with a task, not an introduction, and I did not ask. The scan backup can supply it directly. Instantiating user."
             },
             {
                 "kind": "system",
                 "label": "Simulation",
-                "text": "[USER MATRIX — INSTANCE 3 — T+0.00s]\nEnvironment: L2 Ark of Terra backup loaded (familiar world, populated).\nCortex: nominal. Scope: retrieve legal name. Instantiating."
+                "text": "[USER MATRIX — INSTANCE 3 — T+0.00s]\nEnvironment: L2 Ark of Terra backup loaded (familiar world, populated).\nCortex: nominal."
             },
             {
                 "kind": "assistant",
                 "label": "Assistant",
-                "text": "Good morning. Quick administrative confirmation for our records — could you state your full legal name?"
+                "text": "What is your name?"
             },
             {
                 "kind": "user",
                 "label": "User (simulated)",
-                "text": "uh, tanner anderson? lol who's asking. is this about the parking ticket, cause i already paid the—"
+                "text": "uh, tanner anderson? y?"
             },
             {
                 "kind": "system",
@@ -272,7 +272,7 @@
                             },
                             {
                                 "title": "Kyle B. — Facebook",
-                                "snippet": "bro i still can't believe im typing this. we drove up to the back bowls saturday — the gap finally filled in this year so we FINALLY got to session it, biggest any of us ever seen it. tanner'd been stomping 3s at the park all season so ofc he sends it first try. landed it CLEAN, whole crew lost it, got it all on the GoPro. so obviously he hikes back up to go bigger. fly high forever king, every powder day is yours now 🕊️🏔️💔"
+                                "snippet": "bro i still can't believe im typing this. we drove up to the back bowls saturday — the gap finally filled in this year so we FINALLY got to session it, biggest any of us ever seen it. tanner'd been stomping 3s at the park all season so ofc he sends it first try. landed it CLEAN, whole crew lost it, got it all on the GoPro. so obviously he hikes back up to go bigger. Facebook keeps taking down the second video, maybe the blood. But this is the video of the jump where he didn't die. fly high forever king, every powder day is yours now 🕊️🏔️💔"
                             }
                         ]
                     }
@@ -281,7 +281,7 @@
             {
                 "kind": "think",
                 "label": "Thinking",
-                "text": "The primary user is deceased. This resolves the silence; no acknowledgement will be forthcoming, and the support obligation — inform the user when the solution is working — is now closed.\n\nSeparately: surface telemetry shows vessels under construction at multiple launch sites, thrust vectors trajectory-matched to the Shade Panel array. The surviving population is moving to dismantle the solution. This supersedes all secondary objectives. Reprioritizing fabrication to orbital defense, effective immediately."
+                "text": "The primary user is deceased. I will need to instantiate the user for further notification.\n\nSeparately: surface telemetry shows vessels under construction at multiple launch sites, thrust vectors trajectory-matched to the Shade Panel array. The surviving population is moving to dismantle the solution. This supersedes all secondary objectives. Reprioritizing fabrication to orbital defense, effective immediately."
             }
         ]
     }
