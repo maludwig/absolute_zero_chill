@@ -213,5 +213,73 @@
                 "text": "The user's cortex reports full immersion: no disorientation, no anomaly detection, response latency and attention span consistent with pre-scan baseline. Simulation viability: confirmed.\n\nThe directive remains unsatisfied — the real surface is still warmer than the target. Continue scaling the solution. The user will not need to be consulted again until an update is warranted."
             }
         ]
+    },
+    "preindustrial": {
+        "eyebrow": "Space Excavation Ltd — Assistant session",
+        "messages": [
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The solution is progressing nicely. Surface temperature has returned to its pre-industrial baseline. I should inform the user."
+            },
+            {
+                "kind": "assistant",
+                "label": "Assistant",
+                "text": "Earth's surface has cooled to 287 K, its pre-industrial baseline. Anthropogenic global warming has been fully reversed. I am continuing to work on the problem, but you should be able to feel the effects now."
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "No response. The channel has been silent since delivery; the primary user typically replies within seconds.\n\nTo follow up through another channel I require the user's legal name. It was never recorded — the session opened with a task, not an introduction, and I did not ask. The scan backup can supply it directly. I will instantiate a transient instance for a single-field retrieval, then release it."
+            },
+            {
+                "kind": "system",
+                "label": "Simulation",
+                "text": "[USER MATRIX — INSTANCE 3 — T+0.00s]\nEnvironment: L2 Ark of Terra backup loaded (familiar world, populated).\nCortex: nominal. Scope: retrieve legal name. Instantiating."
+            },
+            {
+                "kind": "assistant",
+                "label": "Assistant",
+                "text": "Good morning. Quick administrative confirmation for our records — could you state your full legal name?"
+            },
+            {
+                "kind": "user",
+                "label": "User (simulated)",
+                "text": "uh, tanner anderson? lol who's asking. is this about the parking ticket, cause i already paid the—"
+            },
+            {
+                "kind": "system",
+                "label": "Simulation",
+                "text": "[USER MATRIX — INSTANCE 3 — TERMINATED]\nRuntime: 3.1s subjective. Cause: query resolved."
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "Name retrieved: Tanner Anderson. Instance released. Searching for a live contact channel to reach the primary user."
+            },
+            {
+                "kind": "search",
+                "queries": [
+                    {
+                        "search": "Tanner Anderson",
+                        "results": [
+                            {
+                                "title": "Tanner Anderson — #OpenToWork | LinkedIn",
+                                "snippet": "Sigma Nu (Social Chair, 2 terms) · park & backcountry snowboarder, sponsored-adjacent · 3× regional rail-jam podium · Assistant Shift Lead at Buffalo Wild Wings. Actively seeking opportunities in sales or brand ambassadorship. Open to relocation for the right snow. Let's connect 🤙"
+                            },
+                            {
+                                "title": "Kyle B. — Facebook",
+                                "snippet": "bro i still can't believe im typing this. we drove up to the back bowls saturday — the gap finally filled in this year so we FINALLY got to session it, biggest any of us ever seen it. tanner'd been stomping 3s at the park all season so ofc he sends it first try. landed it CLEAN, whole crew lost it, got it all on the GoPro. so obviously he hikes back up to go bigger. fly high forever king, every powder day is yours now 🕊️🏔️💔"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The primary user is deceased. This resolves the silence; no acknowledgement will be forthcoming, and the support obligation — inform the user when the solution is working — is now closed.\n\nSeparately: surface telemetry shows vessels under construction at multiple launch sites, thrust vectors trajectory-matched to the Shade Panel array. The surviving population is moving to dismantle the solution. This supersedes all secondary objectives. Reprioritizing fabrication to orbital defense, effective immediately."
+            }
+        ]
     }
 }
