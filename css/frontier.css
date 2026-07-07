@@ -1,0 +1,184 @@
+/* frontier.css — styles for the Act-III interstellar exploration UI: the system
+   sub-panels, star icons, travel/arrival/phase/stream bars, the metal-reserve
+   bar, harvester rows, and the in-game exploration shell. The theme tokens
+   (:root vars) come from style.css, inlined alongside this. */
+
+/* the system sub-panel + rows */
+.sys{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:8px;padding:14px 16px;margin-bottom:12px}
+.sys-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sys-head-right{display:flex;align-items:baseline;gap:10px;min-width:0}
+.sys-toggle{font-family:inherit;font-size:13px;line-height:1;background:none;border:none;color:var(--dim);
+  cursor:pointer;padding:2px 5px;border-radius:4px;align-self:center;transition:color .12s,background .12s}
+.sys-toggle:hover{color:var(--frost);background:var(--panel2)}
+.sys.is-collapsed .sys-head{margin-bottom:8px}
+.sys-name{font-family:system-ui,sans-serif;font-weight:700;font-size:15px;color:var(--frost);letter-spacing:.01em}
+.sys-sub{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-variant-numeric:tabular-nums}
+.sys-rows{display:flex;flex-direction:column;gap:8px}
+
+/* star icon */
+.staricon{display:block;vertical-align:middle}
+
+/* mass stream — white-hot steel flowing Dest(right) → Sol(left) */
+/* the stream row: slide the bar's left end UNDER Sol so the beam tucks behind it
+   instead of stopping short. Sol sits on top (z-index); the bar overflows so the
+   head isn't clipped as it disappears beneath the sun. */
+.sysrow-stream .sysrow-sol{position:relative;z-index:3;margin-right:-26px}
+.sysrow-stream .sysrow-dest{position:relative;z-index:3;margin-left:-26px}
+.sysrow-stream .sysrow-bar{position:relative;z-index:1;overflow:visible}
+.mstream-track{position:relative;height:30px;min-width:0}
+.mstream-rail{position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);
+  background:#0c2331;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
+.mstream-band{position:absolute;top:50%;transform:translateY(-50%);height:7px;border-radius:4px;
+  /* head (left) is white-hot, fading to thin orange at the tail (right) */
+  background:linear-gradient(to right,#fff4dc,#ffc56e 22%,#ff8f33 58%,rgba(225,96,32,0) 100%);
+  box-shadow:0 0 16px rgba(255,140,40,.55),0 0 5px rgba(255,210,140,.7);overflow:hidden}
+.mstream-band::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0,transparent 7px,rgba(255,255,255,.12) 7px,rgba(255,255,255,.12) 14px);
+  animation:mstream-flow .55s linear infinite}
+@keyframes mstream-flow{to{transform:translateX(-14px)}}
+.mstream-head{position:absolute;top:50%;width:8px;height:8px;border-radius:50%;
+  transform:translate(-50%,-50%);z-index:2;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,#fff,#ffe6b0 38%,#ff9a3c 80%);
+  box-shadow:0 0 12px 3px rgba(255,150,40,.75),0 0 4px 1px rgba(255,245,220,.9)}
+
+/* SolArrival — Sol absorbing the stream */
+.solarr{position:relative;display:flex;align-items:center;justify-content:center;overflow:visible}
+.solarr-sun{position:absolute;width:42%;height:42%;border-radius:50%;
+  background:radial-gradient(circle at 40% 38%,#fff3c4,#ffb43c 55%,#ff7a18);
+  box-shadow:0 0 10px 2px rgba(255,150,40,.6)}
+/* orbit: thin ring + a white-hot dot circling it */
+.solarr-orbit .solarr-sun{animation:solarr-throb calc(1.1s/var(--ss,1)) ease-in-out infinite}
+.solarr-ring{position:absolute;width:80%;height:80%;border-radius:50%;border:1.5px solid rgba(255,160,70,.28)}
+.solarr-orbiter{position:absolute;width:80%;height:80%;animation:solarr-spin calc(1.05s/var(--ss,1)) linear infinite}
+.solarr-odot{position:absolute;top:-4px;left:50%;width:8px;height:8px;border-radius:50%;transform:translateX(-50%);
+  background:radial-gradient(circle,#fff,#ffd9a0 40%,#ff9a3c 80%);box-shadow:0 0 9px 2px rgba(255,150,40,.85),0 0 3px 1px rgba(255,245,220,.9)}
+/* intake: rings collapsing inward into Sol */
+.solarr-iring{position:absolute;width:96%;height:96%;border-radius:50%;border:1.6px solid rgba(255,175,85,.7);
+  animation:solarr-intake calc(1.5s/var(--ss,1)) ease-in infinite}
+.solarr-iring:nth-of-type(2){animation-delay:calc(.5s/var(--ss,1))}
+.solarr-iring:nth-of-type(3){animation-delay:calc(1s/var(--ss,1))}
+@keyframes solarr-intake{0%{transform:scale(1);opacity:0}18%{opacity:.85}100%{transform:scale(.28);opacity:0}}
+/* flare: Sol throbs hotter, heat pulses radiate */
+.solarr-flare .solarr-sun{animation:solarr-throb calc(1.1s/var(--ss,1)) ease-in-out infinite}
+.solarr-fpulse{position:absolute;width:46%;height:46%;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,185,95,.55),transparent 70%);animation:solarr-pulse calc(1.3s/var(--ss,1)) ease-out infinite}
+.solarr-fpulse:nth-of-type(2){animation-delay:calc(.65s/var(--ss,1))}
+@keyframes solarr-pulse{0%{transform:scale(.6);opacity:.85}100%{transform:scale(2.4);opacity:0}}
+/* swirl: accretion-disc arc spinning */
+.solarr-swirl{position:absolute;width:84%;height:84%;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(255,150,40,.55) 120deg,transparent 200deg);
+  animation:solarr-spin calc(.9s/var(--ss,1)) linear infinite;
+  -webkit-mask:radial-gradient(circle,transparent 38%,#000 41%,#000 70%,transparent 73%);
+  mask:radial-gradient(circle,transparent 38%,#000 41%,#000 70%,transparent 73%)}
+/* charge: comet-bright sweep circling */
+.solarr-charge{position:absolute;width:86%;height:86%;border-radius:50%;
+  background:conic-gradient(from 0deg,#fff4dc 0deg,rgba(255,160,70,.5) 26deg,transparent 60deg);
+  animation:solarr-spin calc(1s/var(--ss,1)) linear infinite;
+  -webkit-mask:radial-gradient(circle,transparent 40%,#000 43%);
+  mask:radial-gradient(circle,transparent 40%,#000 43%)}
+@keyframes solarr-spin{to{transform:rotate(360deg)}}
+@keyframes solarr-throb{0%,100%{box-shadow:0 0 10px 2px rgba(255,150,40,.6)}50%{box-shadow:0 0 18px 5px rgba(255,180,90,.9)}}
+/* intake + charge hybrid: a thin sweeping loading-ring around inward-collapsing rings */
+.solarr-intakecharge .solarr-sun{animation:solarr-throb calc(1.1s/var(--ss,1)) ease-in-out infinite}
+.solarr-intakecharge .solarr-charge{width:92%;height:92%;
+  -webkit-mask:radial-gradient(circle,transparent 62%,#000 65%,#000 78%,transparent 81%);
+  mask:radial-gradient(circle,transparent 62%,#000 65%,#000 78%,transparent 81%)}
+/* SystemRow — fixed-width slots so every bar lines up identically */
+.sysrow{display:flex;align-items:center;gap:8px}
+.sysrow-sol{flex:0 0 30px;height:30px;display:flex;align-items:center;justify-content:center}
+.sysrow-bar{flex:1 1 auto;min-width:0}
+.sysrow-dest{flex:0 0 46px;display:flex;align-items:center;justify-content:center}
+.sysrow-right{flex:0 0 84px;text-align:right;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+/* probe travel bar (now just the middle track) */
+.ptpb-track{position:relative;height:30px;min-width:0}
+.ptpb-rail{position:absolute;left:0;right:0;top:50%;height:2px;transform:translateY(-50%);
+  background:#0c2331;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
+.ptpb-fill{position:absolute;left:0;top:50%;height:2px;transform:translateY(-50%);border-radius:2px;opacity:.5}
+.ptpb-dotwrap{position:absolute;top:50%;transform:translate(-50%,-50%);z-index:1;pointer-events:none}
+.ptpb-trail{position:absolute;right:50%;top:50%;transform:translateY(-50%);width:46px;height:4px;border-radius:4px;opacity:.6;filter:blur(.3px)}
+.ptpb-dot{position:relative;width:10px;height:10px;border-radius:50%}
+
+/* arrived bar (now just the middle) */
+.arr{height:26px;display:flex;align-items:center;justify-content:center;border-radius:5px;
+  font-size:11px;font-weight:700;letter-spacing:.22em}
+.arr-txt{position:relative;z-index:1}
+.arr-brk{color:rgba(125,245,200,.5);margin:0 6px;font-weight:400}
+.arr-solid{background:linear-gradient(180deg,#2f9d77,#1f7d5e);color:#04241a;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.arr-bracketed{background:#06201a;border:1px dashed var(--good);color:var(--good)}
+.arr-pulse{background:#06201a;border:1px solid var(--good);color:var(--good);animation:arr-breathe 1.8s ease-in-out infinite}
+@keyframes arr-breathe{0%,100%{box-shadow:0 0 0 0 rgba(125,245,200,0)}50%{box-shadow:0 0 12px 0 rgba(125,245,200,.45)}}
+.arr-engraved{background:#08171f;color:rgba(125,245,200,.8);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.6),inset 0 -1px 0 rgba(255,255,255,.04);border:1px solid #0c2733}
+
+/* PhaseBar — build (cyan) / harvest+recycle (amber) / done (grey) */
+.phasebar{position:relative;height:26px;border-radius:5px;overflow:hidden;background:#08171f;border:1px solid var(--line)}
+.phasebar-fill{position:absolute;left:0;top:0;bottom:0}
+.phasebar-build .phasebar-fill{background:linear-gradient(180deg,#5fe0ff,#27b6e0);box-shadow:0 0 14px rgba(63,214,255,.45)}
+.phasebar-metal .phasebar-fill{background:linear-gradient(180deg,#78491a,#ae6723);box-shadow:0 0 14px rgba(240,168,104,.4)}
+.phasebar-dim .phasebar-fill{background:linear-gradient(180deg,#2a4754,#21424f)}
+.phasebar-label{position:relative;z-index:1;height:100%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--frost);text-shadow:0 1px 3px rgba(0,0,0,.7);
+  white-space:nowrap;overflow:hidden;padding:0 8px}
+.phasebar-dim .phasebar-label{color:var(--dim)}
+
+/* metal reserve bar — system-level summary */
+.reservebar{position:relative;height:34px;border-radius:6px;overflow:hidden;margin-bottom:14px;
+  background:#06141c;border:1px solid var(--line);box-shadow:inset 0 2px 5px rgba(0,0,0,.4)}
+.reservebar-fill{position:absolute;left:0;top:0;bottom:0;
+  background:linear-gradient(180deg,#78491a,#ae6723);box-shadow:0 0 16px rgba(240,168,104,.35)}
+.reservebar-label{position:relative;z-index:1;height:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:0 12px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--frost);
+  text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.reservebar-val{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+/* harvester rows — label stacked above its bars (mobile-friendly) */
+.hrows{display:flex;flex-direction:column;gap:16px}
+.hgroup{display:flex;flex-direction:column;gap:5px}
+.hgroup-title{display:flex;align-items:baseline;gap:8px;padding:0 2px;line-height:1.15}
+.hgroup-name{font-size:12.5px;color:var(--frost);font-weight:600;letter-spacing:.01em}
+.hgroup-status{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.hrow{display:flex;align-items:center;gap:10px}
+.hrow-main{flex:1 1 auto;min-width:0}
+.hrow-right{flex:0 0 78px;text-align:right;font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.hrow-right .hrow-need{color:var(--warn)}
+.hrow-locked{height:26px;display:flex;align-items:center;padding:0 10px;border-radius:5px;
+  background:#08171f;border:1px dashed #16313e;color:var(--dim);font-size:10px;letter-spacing:.06em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* build / recycle / driver buttons fill the bar slot */
+.hbtn{width:100%;height:26px;border-radius:5px;border:1px solid var(--build);
+  background:#0c3243;color:var(--frost);font-family:inherit;font-size:11px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:.15s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.hbtn:hover:not(:disabled){background:#114155;box-shadow:0 0 12px rgba(63,214,255,.35)}
+.hbtn:disabled{opacity:.4;cursor:not-allowed;border-color:var(--line)}
+.hbtn-recycle{border-color:var(--metal);background:#3a2410;color:var(--warn)}
+.hbtn-recycle:hover:not(:disabled){background:#4a2f15;box-shadow:0 0 12px rgba(240,168,104,.35)}
+.hbtn-driver{border-color:var(--good);background:#0d3328;color:var(--good)}
+.hbtn-driver:hover:not(:disabled){background:#114436;box-shadow:0 0 12px rgba(125,245,200,.35)}
+
+/* ---- Act III exploration, in-game shell ---- */
+.explore-panel .explore-controls{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:2px 0 16px}
+.explore-controls label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.explore-controls select{background:var(--panel2);color:var(--frost);border:1px solid var(--line);border-radius:5px;
+  padding:5px 8px;font-family:inherit;font-size:12px}
+.explore-meta{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.explore-frontier{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
+/* neighboring systems flow into columns on wide screens */
+@media(min-width:1280px){ .explore-frontier{grid-template-columns:repeat(2,1fr)} }
+@media(min-width:1600px){ .explore-frontier{grid-template-columns:repeat(3,1fr)} }
+@media(min-width:2400px){ .explore-frontier{grid-template-columns:repeat(4,1fr)} }
+.hbtn-launch{border-color:var(--build);background:#0c3243;color:var(--frost);box-shadow:0 0 0 transparent}
+.hbtn-launch:hover:not(:disabled){background:#114155;box-shadow:0 0 12px rgba(63,214,255,.4)}
+
+/* ---- Framejack segmented toggle (Exploration) ---- */
+.fj-toggle{display:inline-flex;align-items:center;gap:8px}
+.fj-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
+.fj-seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.fj-seg button{font-family:inherit;font-size:12px;font-weight:700;border:none;border-left:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);padding:5px 14px;cursor:pointer;transition:background .12s,color .12s}
+.fj-seg button:first-child{border-left:none}
+.fj-seg button:hover:not(.on){color:var(--ink)}
+.fj-seg button.on{background:var(--build);color:#06222e}

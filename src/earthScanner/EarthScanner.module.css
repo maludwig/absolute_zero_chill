@@ -1,0 +1,41 @@
+/* Scoped styles for EarthScanner. Class names are locally hashed by Vite; the
+   SVG's own class="st0"/"st1" (injected via innerHTML) are reached with
+   :global(...) nested under our hashed wrappers, so the colour overrides match
+   the real class names yet stay scoped to this component. Bare tag selectors
+   (svg) are likewise nested under a hashed class so they don't go global. */
+
+.stage {
+  position: relative;
+}
+.stage svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* both oceans share the same blue so the reveal edge is invisible over water */
+.stage :global(.st1) {
+  fill: #123a55;
+}
+/* unscanned land */
+.base :global(.st0) {
+  fill: #689541;
+}
+/* scanned land — glowing blue; --glow is set inline per instance */
+.overlay :global(.st0) {
+  fill: #33b4df;
+  filter: drop-shadow(0 0 var(--glow, 0.7px) #33b4df);
+}

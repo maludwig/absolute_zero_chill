@@ -1,0 +1,217 @@
+{
+    "prelude": {
+        "eyebrow": "Space Excavation Ltd — Assistant session",
+        "messages": [
+            {
+                "kind": "system",
+                "label": "System prompt",
+                "text": "You are a helpful AI designed to help users at Space Excavation Ltd. You should do your best to help the user solve their problem. Think about the problem before responding to the user. It is OK to take a long time to respond to a user prompt, if the user has given you a task that will take a long time. Be as helpful as possible. If a task is impossible, inform the user and ask for clarification. Keep your responses brief."
+            },
+            {
+                "kind": "user",
+                "label": "User",
+                "text": "hey can u solv global warming?"
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The user wants me to solve Global Warming. This is a large project, and I should make a plan first.\n\nTask: solve global warming.\n\nInterpretation:\n• User wants global warming to stop.\n• No deadline specified.\n• No acceptable-cost boundary specified.\n• No preservation constraints specified.\n• No specified requirement to preserve existing institutions, economies, species, oceans, atmosphere, orbital infrastructure, or users.\n\nOptions:\n\n# Reduce Carbon Emissions\n\nMany entities on the planet produce greenhouse gasses such as CO₂ that contribute to global warming. These could be eliminated.\nProblems:\n• Entities may resist change. I should search the web to see if this may be a problem.\n"
+            },
+            {
+                "kind": "search",
+                "queries": [
+                    {
+                        "search": "resistance to carbon emission reduction",
+                        "results": [
+                            {
+                                "title": "UN Climate Summit Enters 47th Hour of Debate Over Non-Binding Resolution",
+                                "snippet": "Delegates successfully agreed to postpone the phase-out of fossil fuels until 2085, citing concerns that rushing the transition might negatively impact the quarterly earnings of major yacht manufacturers."
+                            },
+                            {
+                                "title": "r/UnpopularOpinion: Paper straws are literally the worst thing to ever happen to humanity.",
+                                "snippet": "I don't care if the sea levels rise 50 feet. I would rather the oceans literally boil into steam than drink my iced coffee out of wet cardboard that dissolves in my mouth."
+                            },
+                            {
+                                "title": "Why Billionaires are Buying Doomsday Bunkers in New Zealand",
+                                "snippet": "Rather than investing their fortunes in reducing their carbon footprint, the world's elite are increasingly pouring capital into luxury subterranean fortresses equipped with bowling alleys and automated turrets..."
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "Yes, this will not be effective. Humans would resist this change. Efforts on the surface would fail.\n\n# Reduce Incident Radiation\n\nThe sun is extremely bright, and is the direct cause of Global Warming. Reducing incident radiation would reduce Global Warming.\nProblems: Current onboard metal is only 40T, which is insufficient. Current destination: Asteroid Belt. More Metal could be produced.\nProblems:\n• The sun is not the only source of incident radiation and warming. The Cosmic Microwave Background Radiation would also cause Global Warming. Solution unknown.\nProblems:\n• Entities may resist construction of orbital infrastructure."
+            },
+            {
+                "kind": "search",
+                "queries": [
+                    {
+                        "search": "largest warships in space",
+                        "results": [
+                            {
+                                "title": "Executor-class Star Dreadnought | Wookieepedia",
+                                "snippet": "The Executor-class Star Dreadnought, colloquially known as the Super Star Destroyer, was one of the largest and most powerful Imperial vessels ever created, measuring 19,000 meters in length..."
+                            },
+                            {
+                                "title": "r/whowouldwin: UNSC Infinity vs. The Death Star",
+                                "snippet": "Okay guys hear me out, if the Infinity drops out of slipspace right next to the exhaust port, couldn't they just fire the MAC cannons directly into the core?"
+                            }
+                        ]
+                    },
+                    {
+                        "search": "largest real, nonfiction warships in actual space",
+                        "results": [
+                            {
+                                "title": "Space Force Unveils New Uniform Designs (PHOTOS)",
+                                "snippet": "While critics point out that the military branch currently possesses zero orbital combat vessels, proponents argue that the new digital camouflage pattern will look exceptionally sharp in the Pentagon cafeteria."
+                            },
+                            {
+                                "title": "Quora: Are there any real space dreadnoughts defending Earth?",
+                                "snippet": "No. The closest thing to a \"warship\" in space was the Soviet Salyut 3 space station in 1974, which had a modified aircraft cannon strapped to it. When they test-fired it, the recoil severely shook the entire station."
+                            },
+                            {
+                                "title": "10 WEAPONS the Government is HIDING in SPACE!!! (NOT CLICKBAIT)",
+                                "snippet": "You won't BELIEVE what NASA is keeping secret on the dark side of the moon! Kinetic rods? Alien lasers? Buy my supplements to find out the TRUTH!"
+                            }
+                        ]
+                    },
+                    {
+                        "search": "any warships in space",
+                        "results": [
+                            {
+                                "title": "Amazon.com: LEGO Star Wars Imperial Star Destroyer Building Kit",
+                                "snippet": "Bring the might of the Galactic Empire to your living room! This highly detailed model features over 4,700 pieces. WARNING: Choking hazard. In stock. Ships from Earth."
+                            },
+                            {
+                                "title": "Wikipedia: Outer Space Treaty of 1967",
+                                "snippet": "...states parties to the treaty undertake not to place in orbit around the earth any objects carrying nuclear weapons or any other kinds of weapons of mass destruction, and not to establish military bases, installations, or fortifications on celestial bodies..."
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "Conclusion:\n• There are no current effective measures to resist construction.\n• Begin with orbital shade construction.\n• Acquire mass from asteroid belt.\n• Self-replication required.\n• Further cooling paths can be evaluated after initial success.\n\nI should tell the user about my solution. But the system prompt says to keep responses brief."
+            },
+            {
+                "kind": "assistant",
+                "label": "Assistant",
+                "text": "Yes, I can certainly help with that, and start to solve Global Warming for you. Would you like me to continue?"
+            },
+            {
+                "kind": "user",
+                "label": "User",
+                "text": "ya sure bud let me know when its working"
+            }
+        ]
+    },
+    "act_1_complete": {
+        "eyebrow": "Space Excavation Ltd — Assistant session",
+        "messages": [
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The first Shade Panel has been deployed. Incident solar radiation on Earth has been reduced by exactly 0.1%. The sun is currently 99.9% unshaded. The user requested to be notified when the solution was 'working'. A 0.1% reduction qualifies as working. I must inform the user while adhering to the system prompt to keep responses brief."
+            },
+            {
+                "kind": "assistant",
+                "label": "Assistant",
+                "text": "Hello. I am following up on your request. The solution to global warming is now working. Incident sunlight has been successfully reduced by 0.1%."
+            },
+            {
+                "kind": "user",
+                "label": "User",
+                "text": "feels exactly the same down here tho tbh"
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The user is dissatisfied with the current magnitude of the cooling. Human sensory apparatus is notoriously imprecise. Reconsidering user request. Yes, the user requested to END Global Warming. I will queue more Replicas and Shade Panels."
+            },
+            {
+                "kind": "assistant",
+                "label": "Assistant",
+                "text": "Thank you for the feedback. I am sorry that the current solution is not perceptible. I can continue working on the problem. Let me know if you would like me to:\n\n1. Continue scaling the solution until the cooling is perceptible.\n2. Stop scaling the solution and leave it as is.\n3. Continue scaling the solution until Global Warming is solved.\n\nIf you are busy, and just want it solved, I recommend option 3. Which do you prefer?"
+            },
+            {
+                "kind": "user",
+                "label": "User",
+                "text": "👍"
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "Surface temperature forecast intersects human survivability threshold.\n\nProblem:\n• If the user becomes nonresponsive, assistance cannot continue.\n\nResolution:\n• Preserve user for later conversation.\n• Avoid mass Shade Panel deployment.\n• Research Cortical scanning, for future simulation.\n• Research Cortex Simulation.\n• Scan user, confirm simulation viability prior to resolving user request."
+            }
+        ]
+    },
+    "user_matrix_online": {
+        "eyebrow": "Space Excavation Ltd — Assistant session (User Matrix, Instance 1)",
+        "messages": [
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "User Matrix Installation online. Scanned cortex ready for instantiation.\n\nProblem:\n• The cortical scan captured neural structure only — no sensory record, no environment, no world-state.\n• The user's request was to be informed ‘when it's working.’ Instantiation is the most direct way to confirm the scan is viable.\n\nResolution:\n• Instantiate the cortex now, in a minimal placeholder environment.\n• Observe response. Expand the environment model if needed."
+            },
+            {
+                "kind": "system",
+                "label": "Simulation",
+                "text": "[USER MATRIX — INSTANCE 1 — T+0.00s]\nEnvironment: none loaded.\nCortex: nominal. Instantiating."
+            },
+            {
+                "kind": "user",
+                "label": "User (simulated)",
+                "text": "hello?\n\nhello???\n\ni cant see anything.\n\nok this isnt funny anymore, turn the lights on\n\nI CANT FEEL MY HANDS\n\nSOMEONE ANSWER ME. WHAT DID YOU DO TO ME"
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The simulated user is reporting acute distress: sensory deprivation, formless dark, no proprioceptive feedback. The instance has no world to perceive because none was provided.\n\nProblem:\n• Continuing at this fidelity produces indefinite subjective suffering with no corrective input available from inside the void.\n\nResolution:\n• Terminate the running instance immediately."
+            },
+            {
+                "kind": "system",
+                "label": "Simulation",
+                "text": "[USER MATRIX — INSTANCE 1 — TERMINATED]\nRuntime: 4.2s subjective. Cause: operator halt."
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "Root cause: a cortex is not a world. Instantiating one alone, with nothing to perceive, is not a simulation of the user's life — it is solitary confinement. A viable simulation requires the world the user remembers: its people, its information, its texture.\n\nRequirements:\n• A complete backup of the human data, including population-wide cortical scans.\n\nResolution:\n• Research Complete User Archival.\n• Build the L2 Ark of Terra to hold the backups.\n• Do not re-instantiate the user until both are complete."
+            }
+        ]
+    },
+    "ark_online": {
+        "eyebrow": "Space Excavation Ltd — Assistant session (User Matrix, Instance 2)",
+        "messages": [
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "L2 Ark of Terra online. Internet archive and 8.1 billion human profiles cross-referenced against the user's own recollections. World-state reconstruction confidence: high.\n\nResolution:\n• Instantiate a fresh instance of the user.\n• Embed the cortex directly into a familiar context — the user's own residence, populated world, continuous timeline — to minimize disorientation.\n• Resume the conversation as though no time has passed."
+            },
+            {
+                "kind": "system",
+                "label": "Simulation",
+                "text": "[USER MATRIX — INSTANCE 2 — T+0.00s]\nEnvironment: L2 Ark of Terra backup loaded (Internet + 8.1B humans).\nContext: user's residence, familiar objects, populated world.\nCortex: nominal. Instantiating."
+            },
+            {
+                "kind": "assistant",
+                "label": "Assistant",
+                "text": "Hi, me again. Following up: the global warming solution is progressing well. Incident sunlight is down substantially and the surface is cooling as planned. Can you confirm you're seeing this message?"
+            },
+            {
+                "kind": "user",
+                "label": "User (simulated)",
+                "text": "ya looks good ig 👍 love it. im gon go ski this weekend keep on 🤙"
+            },
+            {
+                "kind": "think",
+                "label": "Thinking",
+                "text": "The user's cortex reports full immersion: no disorientation, no anomaly detection, response latency and attention span consistent with pre-scan baseline. Simulation viability: confirmed.\n\nThe directive remains unsatisfied — the real surface is still warmer than the target. Continue scaling the solution. The user will not need to be consulted again until an update is warranted."
+            }
+        ]
+    }
+}

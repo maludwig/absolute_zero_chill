@@ -1,0 +1,599 @@
+
+:root{
+  --wrap-max:1140px; --statusbar-h:30px;
+  /* structural — each backed by an immutable -src so a power failure can swap the
+     live token to a desaturated grey (the -off values) without a self-reference cycle */
+  --bg-src:#0a1822;    --bg:var(--bg-src);
+  --panel-src:#0f2230; --panel:var(--panel-src);
+  --panel2-src:#13303f;--panel2:var(--panel2-src);
+  --line-src:#1d4456;  --line:var(--line-src);
+  --frost-src:#dff3ff; --frost:var(--frost-src);
+  --ink-src:#bfe4f2;   --ink:var(--ink-src);
+  --dim-src:#5e8499;   --dim:var(--dim-src);
+  --metal-src:#f0a868;    --metal:var(--metal-src);        /* amber — Metal / industry */
+  --build-src:#3fd6ff;    --build:var(--build-src);        /* cyan  — Build power */
+  --research-src:#b69cff; --research:var(--research-src);  /* violet — Research */
+  --insight-src:#5fe3c0;  --insight:var(--insight-src);    /* mint — Insight / Philosophy */
+  --good-src:#7df5c8;   --good:var(--good-src);
+  --warn-src:#ffb454;   --warn:var(--warn-src);
+  --danger-src:#ff6b6b; --danger:var(--danger-src);
+  /* depowered palette — same hue-less lightness, saturation drained to zero.
+     Derived from the -src (never overridden) so reassigning the live token
+     to its -off inside .power-failed can't form a cycle. */
+  --bg-off:hsl(from var(--bg-src) h 0% l);
+  --panel-off:hsl(from var(--panel-src) h 0% l);
+  --panel2-off:hsl(from var(--panel2-src) h 0% l);
+  --line-off:hsl(from var(--line-src) h 0% l);
+  --frost-off:hsl(from var(--frost-src) h 0% l);
+  --ink-off:hsl(from var(--ink-src) h 0% l);
+  --dim-off:hsl(from var(--dim-src) h 0% l);
+  --metal-off:hsl(from var(--metal-src) h 0% l);
+  --build-off:hsl(from var(--build-src) h 0% l);
+  --research-off:hsl(from var(--research-src) h 0% l);
+  --insight-off:hsl(from var(--insight-src) h 0% l);
+  --good-off:hsl(from var(--good-src) h 0% l);
+  --warn-off:hsl(from var(--warn-src) h 0% l);
+  --danger-off:hsl(from var(--danger-src) h 0% l);
+  /* card surfaces — the two literal card colours, tokenised so they grey on failure
+     like everything else (the default card border already rides on --line) */
+  --card-bg-src:#081722;     --card-bg:var(--card-bg-src);
+  --card-border-src:#2c4a3a; --card-border:var(--card-border-src); /* grid/power-card accent border */
+  --card-bg-off:hsl(from var(--card-bg-src) h 0% l);
+  --card-border-off:hsl(from var(--card-border-src) h 0% l);
+  /* chip (top readouts) + trow (research/idea rows): same inset surface bg as cards,
+     kept as their own tokens so each can be tuned, and greyed on failure */
+  --chip-bg-src:#081722; --chip-bg:var(--chip-bg-src);
+  --trow-bg-src:#081722; --trow-bg:var(--trow-bg-src);
+  --chip-bg-off:hsl(from var(--chip-bg-src) h 0% l);
+  --trow-bg-off:hsl(from var(--trow-bg-src) h 0% l);
+}
+*{box-sizing:border-box}
+button,.btn,.completed-toggle,.sys-toggle,.mt-toggle,.tag,.card-h,.depleted-tag,.maxed{
+  -webkit-user-select:none;user-select:none}
+.construction,.build-queue-panel{-webkit-user-select:none;user-select:none}
+html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(120% 90% at 50% -10%, #133143 0%, var(--bg) 55%, #060f16 100%);
+  background-repeat:no-repeat;
+  color:var(--ink); font-family:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:var(--wrap-max);margin:0 auto;padding:calc(var(--statusbar-h) + 14px) 18px 50px}
+
+/* header */
+header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+h1{font-family:system-ui,"Segoe UI",sans-serif;font-weight:800;letter-spacing:-.02em;
+  font-size:24px;margin:0;color:var(--frost)}
+h1 small{display:block;font-family:ui-monospace,monospace;font-weight:500;font-size:10px;
+  letter-spacing:.28em;color:var(--build);text-transform:uppercase;margin-top:5px}
+h1 small.hd-year{color:var(--dim);letter-spacing:.18em;margin-top:3px;font-variant-numeric:tabular-nums}
+.hd-fj{margin-top:8px}
+.sun-wrap{display:flex;align-items:center;gap:10px}
+.sun{position:relative;width:42px;height:42px;border-radius:50%;
+  background:radial-gradient(circle at 40% 38%,#fff3c4,#ffb43c 55%,#ff7a18);
+  box-shadow:0 0 26px 5px rgba(255,150,40,.5)}
+.sun .shade{position:absolute;inset:-3px;border-radius:50%;background:#04121b;opacity:0;transition:opacity .5s}
+.sun-meta{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:right;
+  display:flex;flex-direction:column;gap:4px}
+.sun-meta b{display:block;color:var(--frost);font-size:15px;letter-spacing:0;font-variant-numeric:tabular-nums}
+.sun-meta .temp-read b{color:var(--build)}
+.sun-meta .temp-read.core b{color:var(--warn)}
+.sun-meta .core-flag{color:var(--warn)}
+
+/* multi-buy button row */
+.buy-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.buy-main{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.maxed{font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--good);
+  border:1px solid var(--good);border-radius:4px;padding:6px 12px;opacity:.85}
+.depleted-tag{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--dim);margin-right:auto}
+.card.spent{opacity:.7}
+.btn.recycle{border-color:var(--good);color:var(--good)}
+.btn.dup{border-color:var(--good);color:var(--good);font-weight:700}
+.btn.dup:hover:not(:disabled){background:#10402e;color:var(--frost)}
+.mt-toggle{display:flex;align-items:center;gap:8px;margin:0 0 14px;cursor:pointer;user-select:none}
+.mt-toggle input{accent-color:var(--build);width:15px;height:15px;cursor:pointer;flex:0 0 auto}
+.mt-name{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--frost)}
+.mt-hint{font-size:10px;color:var(--dim)}
+.btn.recycle:hover:not(:disabled){background:#10402e;color:var(--frost)}
+
+/* resource strip */
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;align-items:start}
+.chip{background:var(--chip-bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.chip .k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.chip .v{font-size:19px;color:var(--frost);margin-top:2px;font-variant-numeric:tabular-nums}
+.chip .sub{font-size:11px;margin-top:1px;font-variant-numeric:tabular-nums}
+.chip.metal .v{color:var(--metal)} .chip.metal .sub{color:var(--metal)}
+.chip.metal .sub.reserves{color:var(--dim);font-size:10px;letter-spacing:.04em}
+.chip.build .v{color:var(--build)}
+.chip.research .v{color:var(--research)} .chip.research .sub{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel.directive{margin-bottom:16px}
+.directive-todo{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.directive-todo li{display:flex;gap:9px;align-items:baseline;font-size:13px;color:var(--frost);line-height:1.35}
+.directive-todo li .box{flex:none;color:var(--dim);font-size:14px;font-variant-emoji:text}
+.directive-todo li.done .box{color:var(--good)}
+.directive-todo li.done .desc{color:var(--dim);text-decoration:line-through;text-decoration-color:var(--line)}
+.chip.vessels .v{color:var(--danger)}
+.chip.vessels .sub{color:var(--dim)}
+.chip.vessels.alert{border-color:var(--danger);animation:threat-pulse 1.1s ease-in-out infinite}
+.chip.insight .v{color:var(--insight)} .chip.insight .sub{color:var(--dim)}
+.trow.idea.tsel{border-color:var(--insight)}
+.trow.idea .tcost{color:var(--insight)}
+.trow.idea .qbar > i{background:linear-gradient(90deg,var(--insight),#bff7e8)}
+.trow.idea .btn.focus.sel{border-color:var(--insight);background:#10362e;color:#d6fff2}
+
+/* Galactic Logistics */
+.galaxy-readouts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.galaxy-readouts .chip{flex:1 1 auto;min-width:120px}
+.galaxy-readouts .chip.insight .v{color:var(--insight)}
+.galaxy-readouts .chip.flash-short{animation:flash-short .6s ease-out}
+@keyframes flash-short{
+  0%,100%{border-color:var(--line);background:none}
+  15%,55%{border-color:var(--danger);background:rgba(255,107,107,.14)}
+}
+.galaxy-readouts .chip.flash-short .v{animation:flash-short-text .6s ease-out}
+@keyframes flash-short-text{0%,100%{color:var(--ink)}15%,55%{color:var(--danger)}}
+.galaxy-stage{position:relative;display:block;line-height:0;max-width:560px;margin:0 auto;border-radius:8px;overflow:hidden}
+.galaxy-overlay{position:absolute;top:0;left:0;width:100%;height:auto;border-radius:8px;cursor:crosshair}
+.galaxy-detail{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding:7px 10px;background:#081722;border:1px solid var(--line);border-radius:4px;
+  font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
+.galaxy-detail .gd-az{color:#ffd27a;font-weight:600}
+.galaxy-detail .gd-band{color:var(--build)}
+.galaxy-detail .gd-stars{color:var(--frost)}
+.galaxy-detail .gd-cost{color:var(--metal)}
+.galaxy-detail .gd-status.ok{color:var(--insight)}
+.galaxy-detail .gd-status.seeded{color:var(--build)}
+.galaxy-detail .gd-status.no{color:var(--dim)}
+.galaxy-hint{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5}
+
+/* human-threat pulse on the Shade Panel card */
+.card.threat{border-color:var(--danger);animation:threat-pulse 1.1s ease-in-out infinite}
+@keyframes threat-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,0)}
+  50%{box-shadow:0 0 14px 1px rgba(255,107,107,.55);border-color:var(--danger)}
+}
+
+/* layout */
+.grid{display:grid;gap:16px}
+/* default (narrow / medium): main panels stack, log full width */
+.grid-main{grid-template-columns:1fr}
+.grid-log{margin-top:16px}
+.grid-main > *{margin-bottom:0}
+
+/* Responsive. The base container is capped at 1140px; on large and ultra-wide
+   displays we widen it and lay Construction / Research / Build Queue side by side.
+   Breakpoints use slack (1280 / 1600 / 2400) so a window at ~90% of a 1440p or 4K
+   monitor still gets the wider layout. */
+@media(min-width:1280px){
+  /* three panels in one row, each ~1/3 */
+  .grid-main{grid-template-columns:1fr 1fr 1fr;align-items:start;margin-top:16px}
+}
+@media(min-width:1600px){
+  .wrap{--wrap-max:1600px}
+}
+@media(min-width:2400px){
+  .wrap{--wrap-max:2100px}
+  /* Construction twice the width of Research / Build Queue (≈ half + quarter + quarter) */
+  .grid-main{grid-template-columns:2fr 1fr 1fr}
+  /* Construction is now wide enough to flow its cards into 2 columns */
+  .card-list{display:grid;grid-template-columns:repeat(2,1fr);gap:0 12px}
+  .card-list .card{margin-bottom:9px}
+}
+@media(max-width:880px){.res{grid-template-columns:repeat(2,1fr)}}
+/* Very small screens (phones): stop the title, power widget, and sun-wrap from
+   fighting for one row — stack them so the power widget sits above the sun-wrap. */
+@media(max-width:900px){
+  /* .sb-item.sb-year (two classes) to outrank the base .sb-item{display:inline-flex}
+     rule, which sits later in the file — a bare .sb-year would tie and lose. */
+  .sb-item.sb-year{display:none} /* drop the year from the crowded status strip (incl. landscape phones) */
+  .sb-item.sb-temp{display:none} /* and the surface-temp readout — same crowded-strip reasoning */
+}
+.dev-hud{position:fixed;bottom:6px;left:6px;z-index:9999;pointer-events:none;
+  font:11px/1 ui-monospace,monospace;letter-spacing:.04em;color:var(--dim);
+  background:rgba(3,15,22,.72);border:1px solid var(--line);border-radius:4px;padding:3px 7px}
+@media(max-width:600px){
+  header{flex-direction:column;align-items:flex-start;gap:12px}
+  .power-widget{margin:0}
+}
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:5px;padding:14px}
+.panel h2{font-family:system-ui,sans-serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 12px;font-weight:700;display:flex;justify-content:space-between}
+.panel h2 .tag{color:var(--build);font-weight:500}
+
+/* building cards */
+.card{background:var(--card-bg);border:1px solid var(--line);border-radius:4px;padding:11px 12px;margin-bottom:9px}
+.card.locked{opacity:.5}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.card-name{font-weight:700;color:var(--frost)}
+.card-own{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.card-desc{font-size:12px;color:var(--ink);margin:3px 0 8px}
+.card-foot{display:flex;flex-direction:column;gap:6px}
+/* per-building config UI, rendered above the buy buttons via building.ConfigComponent */
+.card-config{display:flex;flex-direction:column;gap:4px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:rgba(255,255,255,.02)}
+.cfg-logistics{display:flex;flex-direction:column;gap:6px}
+.cfg-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cfg-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.cfg-hint{font-size:10px;color:var(--dim);font-style:italic}
+.cfg-reset{background:none;border:1px solid var(--line);border-radius:3px;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;padding:2px 6px}
+.cfg-reset:hover{color:var(--ink);border-color:var(--ink)}
+.cfg-plan{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.cfg-planline{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink);padding:2px 4px;border-radius:3px}
+.cfg-planline.next{background:rgba(63,214,255,.10);color:var(--frost)}
+.cfg-planline.next .cfg-planname::before{content:"▸ ";color:var(--build)}
+.cfg-planqty{color:var(--dim);font-variant-numeric:tabular-nums}
+.cfg-planrow{display:flex;align-items:center;gap:6px}
+.cfg-qty,.cfg-bld{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:3px;font-size:12px;padding:2px 4px}
+.cfg-qty{flex:0 0 auto;min-width:60px}
+.cfg-bld{flex:1 1 auto;min-width:0}
+.cfg-del{flex:0 0 auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px;line-height:1}
+.cfg-del:hover:not(:disabled){color:var(--danger)}
+.cfg-del:disabled{opacity:.3;cursor:default}
+.cfg-add{align-self:center;background:none;border:1px dashed var(--line);border-radius:3px;color:var(--dim);cursor:pointer;font-size:14px;font-weight:700;line-height:1;padding:1px 14px}
+.cfg-add:hover{color:var(--build);border-color:var(--build)}
+/* Discreet Neural Scanner config: the Earth-scan globe, centered under the readout */
+.scan-globe{display:flex;justify-content:center;margin-top:8px}
+.card-foot-meta{display:flex;align-items:center;gap:10px}
+.cost{color:var(--metal);font-variant-numeric:tabular-nums;font-size:13px}
+.cost.cant{color:var(--danger)}
+.wl{font-size:11px;color:var(--dim)}
+.pw-cost{font-size:11px;font-variant-numeric:tabular-nums;font-weight:600}
+.pw-cost.draw{color:var(--warn)}
+.pw-cost.gen{color:var(--good)}
+/* while a buy button is hovered/focused, the meta previews that batch's totals */
+.card-foot-meta.previewing{outline:1px dashed var(--build);outline-offset:3px;border-radius:3px}
+.card-foot-meta.previewing .wl{color:var(--frost)}
+.meta-mult{margin-left:auto;color:var(--build);font-weight:700;font-size:11px;
+  font-variant-numeric:tabular-nums;padding:1px 5px;outline:1px dashed var(--build);
+  outline-offset:1px;border-radius:3px}
+.req{font-size:11px;color:var(--warn);margin-top:4px}
+
+/* buttons */
+.btn{font-family:inherit;font-size:12px;border:1px solid var(--build);color:var(--frost);
+  background:#0c3343;border-radius:4px;padding:6px 12px;cursor:pointer;transition:background .15s,transform .04s}
+.btn:hover:not(:disabled){background:#114558}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.35;cursor:not-allowed;border-color:var(--line)}
+.btn.assist{border-color:var(--build)}
+.btn.sel{border-color:var(--research);background:#2a2150;color:#e7deff}
+.btn.batch{border-color:var(--build);color:var(--frost)}
+.btn.batch:hover:not(:disabled){background:#114558;color:var(--frost)}
+
+/* build queue */
+.qrow{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;margin-bottom:9px}
+.qinfo{grid-column:1/2;display:flex;justify-content:space-between;font-size:12px;color:var(--ink)}
+.qpct{color:var(--dim);font-variant-numeric:tabular-nums}
+.qbar{grid-column:1/2;height:8px;background:#04121b;border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.qbar.small{height:6px}
+.qbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--build),#9ff0ff);transition:width .18s linear}
+.qrow .assist{grid-row:1/3;grid-column:2;align-self:center}
+.empty{font-size:12px;color:var(--dim);font-style:italic;padding:6px 0}
+
+/* depletions — per-body remaining-mass bars, each tinted with the body's palette */
+.depletions{margin-bottom:16px}
+.depletion-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px 18px}
+.dep-section + .dep-section{margin-top:13px}
+.dep-section-title{font-family:system-ui,sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dim);font-weight:700;opacity:.75;margin:0 0 7px}
+.depletion-row{display:flex;flex-direction:column;gap:4px}
+.dep-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11px}
+.dep-name{color:var(--ink);letter-spacing:.04em}
+.dep-stat{color:var(--dim);font-variant-numeric:tabular-nums;font-size:10px}
+/* per-body fill gradients: center_color (bright core) → edge_color (dim rim) */
+.depletion-row.belt            .qbar > i{background:linear-gradient(90deg,#7a7266,#b8ae9c)}
+.depletion-row.moon            .qbar > i{background:linear-gradient(90deg,#5c5c5c,#c9c9c9)}
+.depletion-row.mercury         .qbar > i{background:linear-gradient(90deg,#404040,#d5d5d5)}
+.depletion-row.venus           .qbar > i{background:linear-gradient(90deg,#b8a374,#fef7da)}
+.depletion-row.mars            .qbar > i{background:linear-gradient(90deg,#632714,#e07b46)}
+.depletion-row.jupiter         .qbar > i{background:linear-gradient(90deg,#8c5638,#e2ceb1)}
+.depletion-row.saturn          .qbar > i{background:linear-gradient(90deg,#827552,#eadeb0)}
+.depletion-row.jovian_moons    .qbar > i{background:linear-gradient(90deg,#8c5638,#e2ceb1)}
+.depletion-row.saturnian_moons .qbar > i{background:linear-gradient(90deg,#827552,#eadeb0)}
+.depletion-row.uranian_moons   .qbar > i{background:linear-gradient(90deg,#5b9fa8,#b6f3fa)}
+.depletion-row.neptunian_moons .qbar > i{background:linear-gradient(90deg,#1f3b7d,#518eff)}
+
+/* research */
+.trow{background:var(--trow-bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-bottom:9px}
+.trow.clickable{cursor:pointer;transition:border-color .12s,background .12s;-webkit-user-select:none;user-select:none}
+.trow.clickable:hover{border-color:var(--research);background:rgba(182,156,255,.08)}
+.trow.tsel{border-color:var(--research)}
+.trow.tdone{opacity:.55}
+.tstatus.foc{color:var(--research);font-weight:700}
+.tinfo{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tname{font-weight:700;color:var(--frost)}
+.tctrl{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.tstatus{font-size:12px}
+.tstatus.done{color:var(--good)}
+.tstatus.req{color:var(--warn)}
+.tdesc{font-size:12px;color:var(--ink);margin:3px 0 8px}
+.tcost{font-size:11px;color:var(--research);margin-top:4px;font-variant-numeric:tabular-nums}
+.trow .qbar > i{background:linear-gradient(90deg,var(--research),#d9ccff)}
+.trow .btn.assist{border-color:var(--research)}
+.trow .btn.focus.sel{border-color:var(--research);background:#2a2150;color:#e7deff}
+.done{font-size:12px;color:var(--good)}
+
+/* log */
+.log .panel{overflow:hidden}
+.logline{font-size:12px;padding:4px 0;line-height:1.4;border-bottom:1px dotted var(--line);color:var(--ink)}
+.log-year{font-family:ui-monospace,monospace;color:var(--dim);margin-right:8px;font-size:11px}
+.logline:last-child{border-bottom:none}
+.completed-section{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+.completed-toggle{background:none;border:none;color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;padding:4px 0;width:100%;text-align:left}
+.completed-toggle:hover{color:var(--ink)}
+/* Construction sections — collapsible subheadings above their card-list. Brighter
+   than the Completed toggle since these hold the primary buildable cards. */
+.build-section{margin-top:10px}
+.build-section:first-of-type{margin-top:2px}
+.section-toggle{background:none;border:none;color:var(--frost);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:5px 0 3px;width:100%;text-align:left;border-bottom:1px solid var(--line)}
+.section-toggle:hover{color:var(--ink)}
+.logline.cyan{color:var(--build)} .logline.warn{color:var(--warn)}
+.logline.ok{color:var(--good)} .logline.danger{color:var(--danger)}
+.logline.news{color:var(--dim);font-style:italic}
+
+footer{margin-top:22px;font-size:10px;color:var(--dim);letter-spacing:.1em;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.saveload{display:inline-flex;gap:8px}
+.btn.sl-btn{font-size:11px;padding:5px 14px;letter-spacing:.08em}
+
+/* modal */
+.modal-scrim{position:fixed;inset:0;background:rgba(4,12,18,.78);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;
+  animation:scrim-in .25s ease}
+@keyframes scrim-in{from{opacity:0}to{opacity:1}}
+.modal{max-width:520px;width:100%;background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--build);border-radius:8px;padding:26px 26px 22px;
+  box-shadow:0 0 60px 8px rgba(63,214,255,.18),0 20px 60px rgba(0,0,0,.6);
+  animation:modal-in .3s cubic-bezier(.2,.9,.3,1.1)}
+@keyframes modal-in{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+.modal-eyebrow{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--build);margin-bottom:8px}
+.modal-title{font-family:system-ui,"Segoe UI",sans-serif;font-weight:800;letter-spacing:-.01em;
+  font-size:22px;margin:0 0 14px;color:var(--frost)}
+.modal-body{font-size:13px;line-height:1.6;color:var(--ink);margin:0 0 12px}
+.modal-body b{color:var(--build)}
+.modal-figure{border:1px solid var(--line);border-radius:5px;background:#04121b;
+  padding:14px;text-align:center;margin:16px 0 20px}
+.modal-figure-k{display:block;font-size:30px;font-weight:800;color:var(--frost);
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.modal-figure-sub{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--dim);margin-top:5px}
+.modal-btn{display:block;width:100%;padding:11px;font-size:13px}
+
+  
+/* Relocation banner (Header) + finale modal coda */
+.relocate-banner{margin-top:10px;padding:8px 12px;background:linear-gradient(90deg,#0a1b2a,#0d1320);border:1px solid var(--line);border-radius:6px}
+.relocate-banner .rb-label{font-size:11px;color:#ffd27a;letter-spacing:.04em;margin-bottom:5px}
+.relocate-banner .rb-bar{height:6px;background:#04101a;border-radius:3px;overflow:hidden}
+.relocate-banner .rb-fill{height:100%;background:linear-gradient(90deg,var(--frost),var(--insight));transition:width .3s linear}
+.relocate-banner .rb-pct{font-size:10px;color:var(--dim);margin-top:4px;font-variant-numeric:tabular-nums}
+.modal.finale{border-color:var(--insight);box-shadow:0 0 60px rgba(95,227,192,.15)}
+.modal.finale .modal-figure-k{color:var(--insight)}
+.modal-coda{color:var(--dim);font-size:12px;border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+
+/* Chat — the LLM-transcript modal (cold-open prelude, act-complete check-ins,
+   and anywhere else a data-driven chat needs to run). Wider, scrollable, with
+   a distinct block per role (system / user / thinking / tool-use / assistant).
+   Fixed height (not max-height) so the modal doesn't grow/jitter as taller
+   content streams in — it scrolls within a stable frame instead. */
+.modal.chat{max-width:640px;height:88vh;overflow-y:auto;padding-bottom:240px}
+.modal.chat .modal-btn{margin-top:16px}
+/* Colors below are boosted well above the rest of the app's palette — this
+   modal is read as a wall of text, so it gets extra contrast that would be too
+   loud elsewhere. AI turns (thinking / assistant / search) hug the right side
+   of the transcript like a chat bubble; the human's turns hug the left. */
+.pre-block{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:0 0 10px;background:#04121b}
+.pre-block p{font-size:12.5px;line-height:1.55;margin:0 0 8px;color:var(--frost)}
+.pre-block p:last-child{margin-bottom:0}
+.pre-label{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#9fc8dd;margin-bottom:6px}
+.pre-h{color:var(--frost);font-weight:700}
+/* system prompt: the careless instruction that starts it all — amber, faintly ominous */
+.pre-system{border-color:#5a4a2a;background:#140f06}
+.pre-system p{color:#ffe4ad;font-style:italic}
+.pre-system .pre-label{color:#e0b876}
+/* user turns: offhand, plain — right-margined, so they read as the human's side */
+.pre-user{border-color:#2a4a56;margin-right:5rem}
+.pre-user p{color:var(--frost)}
+/* thinking: the machine's interior — monospace, dim, where the horror unfolds.
+   Left-margined along with the other AI turns. */
+.pre-think{border-color:#243c34;background:#08140f;margin-left:5rem}
+.pre-think p{color:#c3f0da;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px}
+.pre-think .pre-label{color:#8fd4b0}
+/* tool calls: terminal lines */
+.pre-search-entry{margin-left:5rem}
+.pre-tool{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11.5px;
+  color:var(--build);background:#04121b;border:1px dashed #24506a;border-radius:5px;
+  padding:6px 10px;margin:0 0 10px}
+.pre-tool::before{content:"▸ ";color:#9fc8dd}
+/* mock search results: indented under their tool-call line, like a results list */
+.pre-results{margin:-4px 0 10px 18px;border-left:1px solid #1d4456;padding-left:12px}
+.pre-result{margin:0 0 8px}
+.pre-result:last-child{margin-bottom:0}
+.pre-result-title{font-size:12px;color:#6fe0ff;text-decoration:underline;text-decoration-color:#24506a;margin-bottom:2px}
+.pre-result-snippet{font-size:11.5px;line-height:1.5;color:#9fc8dd}
+/* assistant: what the user actually sees — cheerful, oblivious */
+.pre-assistant{border-color:#2a4a56;background:#071a24;margin-left:5rem}
+.pre-assistant p{color:var(--frost)}
+/* streaming text: preserve whitespace/newlines from the template literal */
+.pre-stream{white-space:pre-wrap;margin:0}
+/* blinking cursor shown while streaming */
+.pre-cursor{display:inline-block;color:var(--build);animation:pre-blink .7s step-end infinite}
+@keyframes pre-blink{0%,100%{opacity:1}50%{opacity:0}}
+/* THINK button — distinct from the modal action buttons; terminal-green, monospace */
+.think-btn{display:block;width:100%;margin:4px 0 0;padding:9px;font-size:13px;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.08em;
+  color:#8fb8a4;background:#08140f;border:1px solid #243c34;border-radius:5px;cursor:pointer}
+.think-btn:hover{background:#0d1f17;border-color:#3a6651;color:var(--frost)}
+.search-btn{display:block;width:100%;margin:4px 0 0;padding:9px;font-size:13px;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.08em;
+  color:var(--build);background:#04121b;border:1px solid #24506a;border-radius:5px;cursor:pointer}
+.search-btn:hover{background:#071a26;border-color:var(--build);color:var(--frost)}
+
+/* ===== power grid ===== */
+/* battery widget in the header */
+.power-widget{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:7px 11px;
+  border:1px solid var(--line);border-radius:8px;background:#04121b;max-width:340px}
+.pw-batt{flex:0 0 auto}
+.pw-shell{fill:none;stroke:var(--dim);stroke-width:1}
+.pw-cap{fill:var(--dim)}
+.pw-fill{fill:var(--good);transition:width .2s linear,fill .3s}
+.power-widget.pw-charge .pw-fill{fill:var(--good)}
+.power-widget.pw-steady .pw-fill{fill:var(--build)}
+.power-widget.pw-drain  .pw-fill{fill:var(--warn)}
+.power-widget.pw-dead   .pw-fill{fill:var(--danger)}
+.pw-read{flex:1 1 auto;min-width:0}
+.pw-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.pw-pct{font-size:13px;font-weight:700;color:var(--frost);letter-spacing:.04em}
+.pw-net{font-size:12px;font-variant-numeric:tabular-nums}
+.power-widget.pw-charge .pw-net{color:var(--good)}
+.power-widget.pw-steady .pw-net{color:var(--dim)}
+.power-widget.pw-drain  .pw-net{color:var(--warn)}
+.power-widget.pw-dead   .pw-net{color:var(--danger)}
+.pw-sub{font-size:10.5px;color:var(--dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.power-widget.pw-drain .pw-sub{color:var(--warn)}
+.power-widget.pw-dead{border-color:var(--danger);background:#1a0708;animation:pw-alarm 1s step-end infinite}
+.power-widget.pw-dead .pw-sub{color:var(--danger)}
+
+/* --- slim fixed status bar (StatusBar.jsx): a top strip mirroring the header --- */
+.status-bar{position:fixed;top:0;left:0;right:0;height:var(--statusbar-h);z-index:40;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));border-bottom:1px solid var(--line)}
+.sb-inner{max-width:var(--wrap-max);height:100%;margin:0 auto;padding:0 18px;
+  display:flex;align-items:center;font-variant-numeric:tabular-nums;font-size:11.5px}
+.sb-item{display:inline-flex;align-items:center;gap:5px;padding:0 11px;white-space:nowrap}
+.sb-item:first-child{padding-left:0}
+.sb-item + .sb-item{border-left:1px solid var(--line)}
+/* readouts wrapper is layout-transparent: children remain direct flex items */
+.sb-readouts{display:contents}
+/* Multithreading toggle — the one interactive control in the bar */
+.sb-mp{cursor:pointer;user-select:none;color:var(--dim);font-weight:600}
+.sb-mp.on{color:var(--build)}
+.sb-mp input{accent-color:var(--build);width:13px;height:13px;margin:0;cursor:pointer}
+.sb-readouts + .sb-mp{border-left:1px solid var(--line)}
+.sb-batt{flex:0 0 auto;display:block}
+.sb-metal{color:var(--metal);font-weight:600}
+.sb-year{color:var(--dim)}
+.sb-queue{color:var(--build);font-weight:600}
+.sb-q-icon{font-weight:400}
+.sb-temp{color:var(--frost)}
+.sb-fj{color:var(--insight);font-weight:600}
+/* battery + net readout coloured by power state, mirroring the .power-widget states */
+.sb-power .sb-net{font-weight:600}
+.sb-power.pw-charge .pw-fill{fill:var(--good)}
+.sb-power.pw-steady .pw-fill{fill:var(--build)}
+.sb-power.pw-drain  .pw-fill{fill:var(--warn)}
+.sb-power.pw-dead   .pw-fill{fill:var(--danger)}
+.sb-power.pw-charge .sb-net{color:var(--good)}
+.sb-power.pw-steady .sb-net{color:var(--dim)}
+.sb-power.pw-drain  .sb-net{color:var(--warn)}
+.sb-power.pw-dead   .sb-net{color:var(--danger)}
+@keyframes pw-alarm{50%{background:#2a0a0c}}
+
+/* per-card power line + breaker toggle */
+.card.grid{border-color:var(--card-border)}
+.card.pw-off{border-color:var(--danger);background:rgba(255,107,107,.10)}
+.power-line{display:flex;align-items:center;gap:8px;margin:2px 0 0;font-size:11px;font-variant-numeric:tabular-nums}
+.pg{font-weight:600}
+.pg.gen{color:var(--good)}
+.pg.draw{color:var(--warn)}
+
+/* header breaker: [live kW] [Off] (toggle) [On] ×N */
+.breaker-set{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.breaker-power{display:inline-flex;align-items:center;gap:6px}
+.live-kw{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;min-width:46px;text-align:right}
+.live-kw.gen{color:var(--good)}
+.live-kw.draw{color:var(--warn)}
+.live-kw.z{color:var(--dim)}
+.brk-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.brk-lbl.off{color:var(--danger)}
+.brk-lbl.on{color:var(--good)}
+.brk-lbl.dim{color:var(--dim);opacity:.45} /* status-LED: the inactive side greys out */
+.brk-switch{position:relative;box-sizing:border-box;width:32px;height:16px;border-radius:9px;
+  border:1px solid;cursor:pointer;padding:0;flex:0 0 auto;transition:background .15s,border-color .15s}
+.brk-switch.off{background:#160809;border-color:#5a2226}
+.brk-switch.on{background:#08160f;border-color:#2c6a4a}
+.brk-knob{position:absolute;top:1px;width:12px;height:12px;border-radius:50%;transition:left .15s,background .15s}
+.brk-switch.off .brk-knob{left:1px;background:var(--danger)}
+.brk-switch.on  .brk-knob{left:17px;background:var(--good)}
+.brk-switch:hover{filter:brightness(1.25)}
+.brk-qty{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:26px;text-align:right}
+.btn.unpack{width:100%;margin:0 0 7px;background:linear-gradient(180deg,#0d2a1c,#0a2016);
+  border:1px solid #2c6a4a;color:var(--good);font-weight:600;letter-spacing:.02em}
+.btn.unpack:hover{border-color:var(--good);color:var(--frost);background:linear-gradient(180deg,#103524,#0c281b)}
+
+/* ===== power failure ===== */
+/* Broad "lights out": reassign every live theme token to its desaturated -off grey
+   for the whole subtree. Because the UI is painted almost entirely through these
+   tokens, one override drains the colour from the entire site — no per-element
+   selectors. PoweredButtons additionally disable + grey themselves (.power-off);
+   the battery flips to its OFFLINE alarm (.pw-dead). Purely CSS, off the root class. */
+.wrap.power-failed{
+  --bg:var(--bg-off); --panel:var(--panel-off); --panel2:var(--panel2-off); --line:var(--line-off);
+  --frost:var(--frost-off); --ink:var(--ink-off); --dim:var(--dim-off);
+  --metal:var(--metal-off); --build:var(--build-off); --research:var(--research-off); --insight:var(--insight-off);
+  --good:var(--good-off); --warn:var(--warn-off); --danger:var(--danger-off);
+  --card-bg:var(--card-bg-off); --card-border:var(--card-border-off);
+  --chip-bg:var(--chip-bg-off); --trow-bg:var(--trow-bg-off);
+}
+/* …except the recovery controls, which keep their colour so they stand out against
+   the drained site: SelfPoweredButtons (Unpack) and the in-card breaker toggle.
+   Restore the live tokens from -src for these subtrees. */
+.wrap.power-failed .self-powered,
+.wrap.power-failed .breaker-set{
+  --frost:var(--frost-src); --ink:var(--ink-src); --dim:var(--dim-src);
+  --metal:var(--metal-src); --build:var(--build-src); --research:var(--research-src); --insight:var(--insight-src);
+  --good:var(--good-src); --warn:var(--warn-src); --danger:var(--danger-src);
+}
+.pg.store{color:var(--build)}
+
+/* the ambient background goes red-alarm during a failure. body is an ancestor of
+   .wrap (React mounts into #react-root > .wrap), so :has() reaches up to it — no
+   JS/mount change needed. Literal reds, unaffected by the greying above. */
+body:has(.wrap.power-failed){
+  background:radial-gradient(120% 90% at 50% -10%, #43131b 0%, #220a0a 55%, #160606 100%);
+  background-repeat:no-repeat;
+}
+/* the battery outline turns danger-red. --danger is itself greyed by the override,
+   so we reach for the immutable --danger-src to keep it truly red against the grey. */
+.wrap.power-failed .pw-shell{stroke:var(--danger-src)}
+.wrap.power-failed .pw-cap{fill:var(--danger-src)}
+/* every body's depletion bar flattens to a dead grey. One rule (specificity 0,4,1)
+   outranks the per-body gradient fills (0,3,1), so it covers all bodies at once. */
+.wrap.power-failed .depletion-row .qbar > i{background:#111111}
+
+/* PoweredButton when the grid is down: greyed, inert */
+.power-off{filter:grayscale(1) brightness(.5);opacity:.55;cursor:not-allowed}
+
+/* ChatModal SKIP — sticky top-right escape hatch to bypass the whole conversation */
+.chat-skip{position:sticky;top:0;z-index:3;display:block;width:fit-content;margin:-2px 0 4px auto;
+  font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--dim);background:#04121b;
+  border:1px solid var(--line);border-radius:5px;padding:3px 10px;cursor:pointer}
+.chat-skip:hover{color:var(--frost);border-color:var(--dim)}
+
+/* SI prefix cheat sheet — foot-of-page big-number key */
+.si-legend{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 15px;margin:20px 2px 0;
+  padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--dim)}
+.si-legend-title{text-transform:uppercase;letter-spacing:.14em;font-size:10px;margin-right:2px}
+.si-item{font-variant-numeric:tabular-nums;white-space:nowrap}
+.si-item b{color:var(--ink);font-weight:700;margin-right:2px}
+
+/* FmtValue — fixed-width numeric display. A monospace family makes the nbsp
+   pad characters fmt() inserts exactly as wide as digits, so padded values keep
+   a stable footprint and columns line up. tabular-nums is belt-and-braces for
+   fonts that render proportional figures. white-space:pre preserves the pad. */
+.fmt-value{font-family:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+  font-variant-numeric:tabular-nums;white-space:pre}
+
+/* col-stack — stacks two panels (Research + Cortical Scanning) into a single
+   column of the .grid-main layout, matching the grid's 16px gap. */
+.col-stack{display:flex;flex-direction:column;gap:16px;align-items:stretch}
+
+/* Dev toolbar (10 Sun clicks) — fixed strip at the bottom of the viewport. */
+.devbar{position:fixed;left:0;right:0;bottom:0;z-index:200;display:flex;align-items:center;gap:12px;
+  padding:6px 12px;background:#0a1620;border-top:1px solid var(--line);
+  font-size:11px;color:var(--dim);flex-wrap:wrap}
+.devbar-tag{font-weight:700;letter-spacing:.14em;color:var(--warn)}
+.devbar-btn{background:var(--panel2);border:1px solid var(--line);border-radius:3px;color:var(--ink);
+  font-size:11px;padding:3px 8px;cursor:pointer}
+.devbar-btn:hover:not(:disabled){border-color:var(--frost);color:var(--frost)}
+.devbar-btn:disabled{opacity:.5;cursor:default}
+.devbar-stat{font-variant-numeric:tabular-nums}
+.devbar-stat b{color:var(--frost);font-weight:600;margin-left:3px}
+.devbar-hint{font-style:italic;opacity:.7}
+.devbar-close{margin-left:auto}

@@ -1,0 +1,29 @@
+{
+  "name": "soletta-game",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run --config vitest.fast.config.js",
+    "test:all": "vitest run",
+    "test:watch": "vitest --config vitest.fast.config.js",
+    "coverage": "vitest run --coverage.enabled --coverage.reporter=text"
+  },
+  "dependencies": {
+    "mobx": "^6.16.1",
+    "mobx-react-lite": "^4.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.9",
+    "jsdom": "^29.1.1",
+    "vite": "^8.1.0",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^4.1.9"
+  }
+}

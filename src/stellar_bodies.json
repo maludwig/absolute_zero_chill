@@ -1,0 +1,66 @@
+{
+  "_note": "Keyed by the game body id used in config.js BODIES. For moon SYSTEMS (config stores the whole system's combined mass), the entry below is the single heaviest moon in that system, used as the representative surface for escape-energy math. The belt uses Ceres. mass_kg / radius_m are real astronomical values (volumetric mean radius for the gas giants).",
+  "belt": {
+    "body": "Ceres",
+    "note": "representative for the asteroid belt",
+    "mass_kg": 9.3839e20,
+    "radius_m": 469700
+  },
+  "uranian_moons": {
+    "body": "Titania",
+    "note": "heaviest Uranian moon",
+    "mass_kg": 3.400e21,
+    "radius_m": 788900
+  },
+  "neptunian_moons": {
+    "body": "Triton",
+    "note": "heaviest Neptunian moon (~99% of system mass)",
+    "mass_kg": 2.1390e22,
+    "radius_m": 1353400
+  },
+  "moon": {
+    "body": "Luna",
+    "note": "Earth's Moon",
+    "mass_kg": 7.342e22,
+    "radius_m": 1737400
+  },
+  "saturnian_moons": {
+    "body": "Titan",
+    "note": "heaviest Saturnian moon",
+    "mass_kg": 1.3452e23,
+    "radius_m": 2574730
+  },
+  "jovian_moons": {
+    "body": "Ganymede",
+    "note": "heaviest Jovian moon (and most massive moon in the solar system)",
+    "mass_kg": 1.4819e23,
+    "radius_m": 2634100
+  },
+  "mercury": {
+    "body": "Mercury",
+    "mass_kg": 3.3011e23,
+    "radius_m": 2439700
+  },
+  "mars": {
+    "body": "Mars",
+    "mass_kg": 6.4171e23,
+    "radius_m": 3389500
+  },
+  "venus": {
+    "body": "Venus",
+    "mass_kg": 4.8675e24,
+    "radius_m": 6051800
+  },
+  "saturn": {
+    "body": "Saturn",
+    "note": "volumetric mean radius",
+    "mass_kg": 5.6834e26,
+    "radius_m": 58232000
+  },
+  "jupiter": {
+    "body": "Jupiter",
+    "note": "volumetric mean radius",
+    "mass_kg": 1.8982e27,
+    "radius_m": 69911000
+  }
+}

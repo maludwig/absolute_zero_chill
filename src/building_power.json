@@ -1,0 +1,41 @@
+{
+  "asteroid_mine": {
+    "powerUsageW": 1543.3157632629968
+  },
+  "uranian_mine": {
+    "powerUsageW": 577961.1719083769
+  },
+  "neptunian_mine": {
+    "powerUsageW": 5242502.348663039
+  },
+  "lunar_mine": {
+    "powerUsageW": 47934800.03448106
+  },
+  "saturnian_mine": {
+    "powerUsageW": 154980968.61936334
+  },
+  "jovian_moon_mine": {
+    "powerUsageW": 341673786.2822463
+  },
+  "mercury_mine": {
+    "powerUsageW": 686719856.3903006
+  },
+  "mars_mine": {
+    "powerUsageW": 1869071881.0726755
+  },
+  "venus_mine": {
+    "powerUsageW": 60479015962.250435
+  },
+  "saturn_mine": {
+    "powerUsageW": 85693158302080.64
+  },
+  "jupiter_mine": {
+    "powerUsageW": 796186188758776.4
+  },
+  "solar_collector": {
+    "powerUsageW": -154331.5763262997
+  },
+  "dyson_ring_collector": {
+    "powerUsageW": -13621046160657164
+  }
+}
