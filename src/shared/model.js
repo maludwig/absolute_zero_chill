@@ -113,3 +113,13 @@ export function categoryReserve(phase, t, tau, m) {
 export function harvesterStartCost(category, asteroidMass) {
   return category === "asteroid" ? 0 : OTHER_COST_FRAC * asteroidMass;
 }
+
+/* Is n exactly 10^k for some integer k >= 0? Build orders are placed in powers of ten
+   (the MULTS buttons: x1, x10, x1000, ...); a x16 multithreaded order is dispatched via
+   enqueueMultithreaded, which divides the batch back down to a power of ten before it
+   reaches enqueue. Note 10^k is divisible by 16 for k >= 4 (10^4 = 2^4 * 5^4), so a
+   `% 16` test cannot distinguish the two — only this can. */
+export function isPowerOfTen(n) {
+  if (!(n > 0)) return false;
+  return Number.isInteger(Math.log10(n));
+}

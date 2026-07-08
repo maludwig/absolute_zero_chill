@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStore, SAVE_VERSION, TELEMETRY_CAP, TELEMETRY_SLACK, LOG_CAP } from "./store.js";
-import { CONFIG, CLIMATE, POP, popCapacity, BODIES, BUILDINGS, TECHS, IDEAS, sectionForBuilding, LOGISTICS_PLAN } from "./config.js";
+import { CONFIG, CLIMATE, POP, popCapacity, BODIES, BUILDINGS, TECHS, IDEAS, MULTS, sectionForBuilding, LOGISTICS_PLAN } from "./config.js";
+import { isPowerOfTen } from "./shared/model.js";
 import { LUT, MAX_WEDGE_STARS, BIN_LY } from "./galaxy/lut.js";
-import { EXPLORE_DAYS_PER_SEC, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, systemReserve, DRIVER_MINED_GATE } from "./explore.js";
+import { EXPLORE_DAYS_PER_SEC, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, EXPLORE_SYSTEMS, systemReserve, DRIVER_MINED_GATE } from "./explore.js";
 import { STORY_CHAIN } from "./story.js";
 import { FIRST_QUEST_KEY, getQuestByKey, MAIN_STORY_CHAIN } from "./quests.js";
 // Drains every currently-satisfiable head across the shared events engine.
@@ -104,7 +105,7 @@ describe("build queue + assist", () => {
   it("enqueue clamps to what metal allows", () => {
     const s = createStore();
     s.metal = 40; // exactly one Asteroid Mine
-    s.enqueue("asteroid_mine", 5); // can only afford 1
+    s.enqueue("asteroid_mine", 10); // a ×10 order, but can only afford 1
     expect(s.buildQueue.length).toBe(1);
     expect(s.buildQueue[0].count).toBe(1);
     expect(s.metal).toBe(0);
@@ -123,12 +124,12 @@ describe("build queue + assist", () => {
   it("cancelBuild refunds the job's full Metal cost and removes it from the queue", () => {
     const s = createStore();
     const unit = BUILDINGS.asteroid_mine.metalCost;
-    s.metal = unit * 3;
-    s.enqueue("asteroid_mine", 3);        // spends all the metal, one job of 3
+    s.metal = unit * 10;
+    s.enqueue("asteroid_mine", 10);       // spends all the metal, one job of 10
     expect(s.metal).toBe(0);
     expect(s.buildQueue.length).toBe(1);
     s.cancelBuild(s.buildQueue[0].uid);
-    expect(s.metal).toBe(unit * 3);       // full cost returned
+    expect(s.metal).toBe(unit * 10);      // full cost returned
     expect(s.buildQueue.length).toBe(0);  // job gone
   });
 
@@ -958,18 +959,18 @@ describe("story chain (STORY_CHAIN via the events engine)", () => {
     expect(s.flags.firstBrain).toBeUndefined(); // and doesn't spuriously fire the Brain milestone
   });
 
-  it("act_2a_pipe reveals the Brain (Act III label) on completion, no firstPipe bridge", () => {
+  it("act_2a_needle reveals the Brain (Act III label) on completion, no firstPipe bridge", () => {
     // MAIN_STORY_CHAIN now covers Acts 1–3 (KARDASHEV_CHAIN and the old ACT_3
     // chain were superseded and dropped). What used to be ACT_3's brainRevealed
     // beat — reveal the Brain, print the "neighboring stars beckon" proposal — is
-    // now folded into act_2a_pipe's onComplete, so no flags.firstPipe bridge exists.
+    // now folded into act_2a_needle's onComplete, so no flags.firstPipe bridge exists.
     const s = createStore();
     expect(s.revealed.brain).toBe(false);
-    reachMainQuest(s, "act_2a_pipe");
+    reachMainQuest(s, "act_2a_needle");
     s.research.done.centrosphere = true;
     s.owned.core_heat_pipes = 1;
     runEvents(s);
-    expect(s.flags.act_2a_pipe).toBe(true);
+    expect(s.flags.act_2a_needle).toBe(true);
     expect(s.revealed.brain).toBe(true);
   });
 
@@ -1362,12 +1363,12 @@ describe("Act III — Brain, Insight, Philosophy", () => {
     expect(s.buildingVisible("sol_matrioshka_brain")).toBe(true);
   });
 
-  it("the Brain is revealed (Act III label) once act_2a_pipe completes", () => {
+  it("the Brain is revealed (Act III label) once act_2a_needle completes", () => {
     // The Brain reveal no longer depends on jupiter_spire — it rides on the Core
-    // Heat Pipe quest (act_2a_pipe), tying Act 2's cooling arc to Act 3 starting.
+    // Heat Pipe quest (act_2a_needle), tying Act 2's cooling arc to Act 3 starting.
     const s = createStore();
     expect(s.revealed.brain).toBe(false);
-    reachMainQuest(s, "act_2a_pipe");
+    reachMainQuest(s, "act_2a_needle");
     s.research.done.centrosphere = true;
     s.owned.core_heat_pipes = 1;
     runEvents(s);
@@ -1823,6 +1824,58 @@ describe("enqueueMultithreaded", () => {
   });
 });
 
+describe("store.arrived (derived probe-arrival lookup)", () => {
+  const NAME = "Alpha Centauri";
+  const DIST = EXPLORE_SYS_BY_NAME[NAME].distance;
+
+  it("is false for every system before any probe launches", () => {
+    const s = createStore();
+    for (const def of EXPLORE_SYSTEMS) expect(s.arrived[def.name]).toBe(false);
+  });
+
+  it("flips true only once the probe's light-lag has elapsed", () => {
+    const s = createStore();
+    const sys = s.explore.sys[NAME];
+    sys.launched = true;
+    sys.speed = 0.9;
+    sys.launchDay = 0;
+    const travel = (DIST / 0.9) * 365; // recomputed here on purpose — pins the formula
+
+    s.explore.day = travel - 1;
+    expect(s.arrived[NAME]).toBe(false);
+
+    s.explore.day = travel;          // arrival is inclusive (>=)
+    expect(s.arrived[NAME]).toBe(true);
+  });
+
+  it("tracks launchDay, not absolute day — a late launch still has to travel", () => {
+    const s = createStore();
+    const sys = s.explore.sys[NAME];
+    sys.launched = true;
+    sys.speed = 0.3;
+    sys.launchDay = 10_000;
+    s.explore.day = 10_000 + (DIST / 0.3) * 365 - 1;
+    expect(s.arrived[NAME]).toBe(false);
+    s.explore.day += 1;
+    expect(s.arrived[NAME]).toBe(true);
+  });
+
+  it("gates buildHarvester / buildDriver", () => {
+    const s = createStore();
+    const sys = s.explore.sys[NAME];
+    sys.launched = true;
+    sys.speed = 0.9;
+    sys.launchDay = 0;
+    s.explore.day = 0; // in transit
+
+    const cat = EXPLORE_DERIVED[NAME].present[0];
+    s.buildHarvester(NAME, cat);
+    expect(sys.cats[cat].phase).toBe("idle"); // refused — not arrived
+    s.buildDriver(NAME);
+    expect(sys.driver.phase).toBe("idle");
+  });
+});
+
 describe("Act III mass-beam full lifecycle (Alpha Centauri)", () => {
   const NAME = "Alpha Centauri";
 
@@ -1939,5 +1992,260 @@ describe("buildQueueFrac (workload-weighted queue completion)", () => {
     s.buildQueue.push({ id: "asteroid_mine", count: 1, progress: 0.2 * w, uid: 1 });
     s.buildQueue.push({ id: "asteroid_mine", count: 1, progress: 0.8 * w, uid: 2 });
     expect(s.buildQueueFrac).toBeCloseTo(0.5, 12); // (0.2 + 0.8) / 2
+  });
+});
+
+describe("High-Power Servos & Kinetic Impactors", () => {
+  const moonBody = BODIES.find((b) => b.tier === "moon");
+  const beltBody = BODIES.find((b) => b.radar);
+
+  it("servos quintuple Replica build power but leave manual Assists alone", () => {
+    const s = createStore();
+    s.owned.replica = 100;
+    const base = s.buildPower;
+    const assistBase = s.playerBuildPower;
+    s.research.done.high_power_servos = true;
+    expect(s.buildPower).toBeCloseTo(base * CONFIG.servoBuildMult, 6);
+    expect(s.playerBuildPower).toBe(assistBase); // ion_thrusters' business, not ours
+  });
+
+  it("servos reach the tick, not just the readout", () => {
+    // The bug this guards: buildPower (the getter) was multiplied while tick() went on
+    // re-deriving owned.replica * replicaBuildPerSec, so the tech was pure cosmetics.
+    // Assert on real job progress; a getter-only assertion cannot see the difference.
+    const mk = (servo) => {
+      const s = createStore();
+      s.research.done.replication = true;
+      s.reconcileMilestones();
+      s.metal = 1e12;
+      s.owned.replica = 10;
+      s.owned.solar_collector = 5000; // keep the grid up
+      s.research.done.high_power_servos = servo;
+      s.enqueue("asteroid_mine", 1000); // far too big to finish in one tick
+      return s;
+    };
+    const off = mk(false), on = mk(true);
+    off.tick(0.2); on.tick(0.2);
+    const p0 = off.buildQueue[0].progress, p1 = on.buildQueue[0].progress;
+    expect(p0).toBeGreaterThan(0);
+    expect(p1).toBeCloseTo(p0 * CONFIG.servoBuildMult, 6);
+  });
+
+  it("tickBuildPower is the single source: rate x dt equals what the tick spends", () => {
+    const s = createStore();
+    s.research.done.replication = true;
+    s.reconcileMilestones();
+    s.metal = 1e12;
+    s.owned.replica = 10;
+    s.owned.solar_collector = 5000;
+    s.research.done.high_power_servos = true;
+    s.enqueue("asteroid_mine", 1000);
+    const expected = s.tickBuildPower(0.2);
+    expect(expected).toBeCloseTo(s.buildPower * 0.2, 9);
+    s.tick(0.2);
+    expect(s.buildQueue[0].progress).toBeCloseTo(expected, 6);
+  });
+
+  it("servos speed up actuators, not cognition — idle research is unchanged", () => {
+    // Surplus build-labour spills into research at 5:1. Servoing the pool without
+    // dividing it back out would make High-Power Servos a stealth research multiplier
+    // and desync researchPower (which has no servo term).
+    const mk = (servo) => {
+      const s = createStore();
+      s.owned.replica = 100;
+      s.owned.solar_collector = 5000;
+      s.research.selected = "radar";        // cost 1000 — won't finish this tick
+      s.research.done.high_power_servos = servo;
+      return s;                              // empty queue: every replica is idle
+    };
+    const off = mk(false), on = mk(true);
+    off.tick(0.2); on.tick(0.2);
+    expect(on.research.progress.radar).toBeCloseTo(off.research.progress.radar, 6);
+    expect(off.researchPower).toBeCloseTo(on.researchPower, 6); // readout stays honest
+  });
+
+  it("impactors quintuple moon-tier yield and nothing else", () => {
+    const s = createStore();
+    expect(s.mineMult(moonBody)).toBe(1);
+    s.research.done.kinetic_impactors = true;
+    expect(s.mineMult(moonBody)).toBe(CONFIG.impactorMineMult);
+    // the belt is not moon-tier — impactors must not touch it
+    expect(s.mineMult(beltBody)).toBe(1);
+  });
+
+  it("stacks multiplicatively with radar only where both apply", () => {
+    const s = createStore();
+    s.research.done.radar = true;
+    s.research.done.kinetic_impactors = true;
+    expect(s.mineMult(beltBody)).toBe(CONFIG.radarMineMult);   // belt: radar only
+    expect(s.mineMult(moonBody)).toBe(CONFIG.impactorMineMult); // moon: impactors only
+  });
+
+  it("metalPerSec (readout) and tick() (truth) apply the same multiplier", () => {
+    const mk = (impactors) => {
+      const s = createStore();
+      s.owned[moonBody.mineId] = 10;
+      s.breakerOn[moonBody.mineId] = true;
+      s.research.done.kinetic_impactors = impactors;
+      return s;
+    };
+    const slow = mk(false), fast = mk(true);
+    expect(fast.metalPerSec).toBeCloseTo(slow.metalPerSec * CONFIG.impactorMineMult, 6);
+
+    // and the integrator agrees with the readout it advertises
+    const mined0 = slow.mined[moonBody.id] || 0;
+    const rate = slow.metalPerSec;
+    slow.tick(0.2);
+    expect((slow.mined[moonBody.id] || 0) - mined0).toBeCloseTo(rate * 0.2, 3);
+  });
+
+  it("impactors reach the tick, not just the readout", () => {
+    // Mirror of the servo regression: assert on tonnage actually mined, not on the
+    // metalPerSec getter. mineMult() is shared by readout and integrator, so this
+    // should hold — but that was true of buildPower's getter too, right up until it
+    // wasn't. The A/B bench (impactorMineMult 5 vs 1) is the end-to-end version.
+    const mk = (impactors) => {
+      const s = createStore();
+      s.owned[moonBody.mineId] = 10;
+      s.breakerOn[moonBody.mineId] = true;
+      s.research.done.kinetic_impactors = impactors;
+      return s;
+    };
+    const slow = mk(false), fast = mk(true);
+    const before = slow.mined[moonBody.id] || 0;
+    slow.tick(0.2); fast.tick(0.2);
+    const dSlow = (slow.mined[moonBody.id] || 0) - before;
+    const dFast = (fast.mined[moonBody.id] || 0) - before;
+    expect(dSlow).toBeGreaterThan(0);
+    expect(dFast / dSlow).toBeCloseTo(CONFIG.impactorMineMult, 6);
+  });
+
+  it("impactors do not accelerate the belt (radar's territory)", () => {
+    const mk = (impactors) => {
+      const s = createStore();
+      s.owned[beltBody.mineId] = 10;
+      s.breakerOn[beltBody.mineId] = true;
+      s.research.done.kinetic_impactors = impactors;
+      return s;
+    };
+    const off = mk(false), on = mk(true);
+    off.tick(0.2); on.tick(0.2);
+    expect(on.mined[beltBody.id]).toBeCloseTo(off.mined[beltBody.id], 9);
+  });
+
+  it("both techs reveal only once act_1b_simulate is complete", () => {
+    const s = createStore();
+    expect(s.techVisible("high_power_servos")).toBe(false);
+    expect(s.techVisible("kinetic_impactors")).toBe(false);
+    s.addCompletedQuest("act_1b_simulate");
+    expect(s.techVisible("high_power_servos")).toBe(true);
+    expect(s.techVisible("kinetic_impactors")).toBe(true);
+  });
+
+  it("story-gated techs are never cheaper than their prerequisites (no autoplayer soft-lock)", () => {
+    // autoplayer.assistVisibleTechOrWait picks the cheapest *visible* tech, but
+    // focusAndAssist no-ops on a locked one. Only revealKey techs can be revealed
+    // while still locked (for the rest, milestones derives revealWhen === enableWhen).
+    // So a story-gated tech cheaper than its prereq would make the bot spin forever.
+    for (const [id, t] of Object.entries(TECHS)) {
+      if (!t.revealKey) continue;
+      for (const req of t.requires ?? []) {
+        expect(TECHS[req].cost, `${id} is cheaper than its prereq ${req}`).toBeLessThan(t.cost);
+      }
+    }
+  });
+});
+
+describe("power failure is unrecoverable without manual intervention", () => {
+  it("latches: with every breaker tripped, powerNet is exactly 0 and the cell never refills", () => {
+    // tickPower trips EVERY breaker on a blackout, generators included. powerGen then
+    // falls to the bare chassis, whose panel and load cancel — so powerNet lands on
+    // exactly 0, power stays at 0, and the `powerFailed && power > 0` clear can never
+    // fire. Only a human flipping breakers (or the bot) brings it back. This is why
+    // the autoplayer must never oversubscribe the grid in the first place.
+    const s = createStore();
+    s.owned.solar_collector = 1;
+    s.owned.replica = 500;          // 500 x 23.8 kW against one collector
+    s.power = 0;
+    let guard = 200;
+    while (!s.powerFailed && guard-- > 0) s.tick(0.2);
+    expect(s.powerFailed).toBe(true);
+    expect(s.breakerOn.solar_collector).toBe(false); // the generator trips too
+
+    for (let i = 0; i < 100; i++) s.tick(0.2);
+    expect(s.powerNet).toBe(0);
+    expect(s.power).toBe(0);
+    expect(s.powerFailed).toBe(true); // still dark, forever
+
+    s.setBreaker("solar_collector", true); // the manual flip
+    s.tick(0.2);
+    expect(s.powerNet).toBeGreaterThan(0);
+    expect(s.powerFailed).toBe(false);
+  });
+});
+
+describe("enqueue's count invariant (powers of ten, or a Duplication doubling)", () => {
+  const dupStore = (owned) => {
+    const s = createStore();
+    s.research.done.replication = true;
+    s.reconcileMilestones();
+    s.metal = 1e12;
+    s.owned.replica = owned;
+    return s;
+  };
+
+  it("accepts a ×2 doubling of an arbitrary fleet size", () => {
+    // Catalog.jsx: dupN = Math.min(owned, cap). 317 is not a power of ten, and a hard
+    // power-of-ten throw crashed the game the moment a player clicked ×2. No test
+    // covered this path, which is how it stayed invisible.
+    const s = dupStore(317);
+    expect(() => s.enqueue("replica", 317)).not.toThrow();
+    expect(s.buildQueue[0].count).toBe(317);
+  });
+
+  it("accepts a ×2 doubling dispatched through Multithreading (16 jobs)", () => {
+    // owned never changes mid-loop (jobs haven't resolved), so all 16 iterations see
+    // the same doubling target.
+    const s = dupStore(317);
+    expect(() => s.enqueueMultithreaded("replica", 317, 16)).not.toThrow();
+    expect(s.buildQueue.length).toBe(16);
+    expect(s.buildQueue.every((j) => j.count === 317)).toBe(true);
+  });
+
+  it("accepts a doubling clamped by the building's remaining capacity", () => {
+    const s = dupStore(400);
+    s.buildingMaxOverrides.replica = 700;      // cap 700 → only 300 more can exist
+    expect(s.remainingCapacity("replica")).toBe(300);
+    const dupN = Math.min(s.owned.replica, s.remainingCapacity("replica")); // 300
+    expect(isPowerOfTen(dupN)).toBe(false);
+    expect(() => s.enqueue("replica", dupN)).not.toThrow();
+  });
+
+  it("accepts every MULTS order and ×1", () => {
+    for (const n of [1, ...MULTS.map((m) => m.n)]) {
+      const s = dupStore(0);
+      expect(isPowerOfTen(n), `MULTS ${n} must be a power of ten`).toBe(true);
+      expect(() => s.enqueue("replica", n)).not.toThrow();
+    }
+  });
+
+  it("throws on a fractional count — a fraction of a structure is never buildable", () => {
+    const s = dupStore(491);
+    expect(() => s.enqueue("replica", 0.5625)).toThrow(/power of ten/);
+  });
+
+  it("throws on an arbitrary count that is neither a MULTS order nor a doubling", () => {
+    const s = dupStore(317);
+    expect(() => s.enqueue("replica", 5)).toThrow(/power of ten/);
+    expect(() => s.enqueue("replica", 318)).toThrow(/power of ten/); // off-by-one from the fleet
+  });
+
+  it("10^k is divisible by 16 for k>=4, so a %16 test could not have discriminated", () => {
+    // Documents why isPowerOfTen exists rather than a divisibility check: a plain ×1e6
+    // order and a ×16 multithreaded ×1e5 order are indistinguishable modulo 16.
+    expect(1e6 % 16).toBe(0);
+    expect((16 * 1e5) % 16).toBe(0);
+    expect(isPowerOfTen(1e6)).toBe(true);
+    expect(isPowerOfTen(16 * 1e5)).toBe(false);
   });
 });

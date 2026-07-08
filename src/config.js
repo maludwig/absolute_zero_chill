@@ -87,8 +87,11 @@ export const CONFIG = {
   playerBuildPowerBase: 1,    // build points per Assist click on a structure
   playerResearchPowerBase: 1, // research points per Assist click on a tech
   replicaBuildPerSec: 1,      // build points / s per Replica when building
+  servoBuildMult: 5,          // high_power_servos: multiplies Replica build power (not your Assists)
+  impactorMineMult: 5,        // kinetic_impactors: multiplies yield from every moon-tier Mine
+  radarMineMult: 2,           // radar: multiplies yield from every radar-flagged (belt) Mine
   emergencyBuildFactor: 0.05, // grid-down: Replicas build at 1/20th on emergency power (no research)
-  replicaResearchPerSec: 1,   // research points / s per Replica when idle
+  replicaResearchPerSec: 5,   // research points / s per Replica when idle
   scienceRpPerDay: 40,        // RP / game-day contributed to the focused tech by each powered Science Installation
   harvestDivisor: 1.0e8,      // belt only: its fullRate = mass / this (= 5 T/s at 100%)
   railgunFrac: 1e-15,         // Moon-tier: Railgun cost = mass × this (one-time infra)
@@ -493,8 +496,8 @@ BUILDINGS.sol_matrioshka_brain = {
   metalCost: 8.2e27,         // ≈ 4.1 solar masses — nested Dyson shells, the whole inner system spent on cognition
   max: 1,
   insightPerDay: CONFIG.insightPerBrainPerDay,
-  requires: ["jupiter_spire"], // needs the gas-giant harvester online — the last in-system body
-  desc: "Nested computational Dyson shells wrapping the Sun, each radiating into the next. A mind the mass of a star. It produces Insight — the only currency the directive's final problem will accept. Building it will take more mass than the solar system holds — the neighboring stars beckon.",
+  requires: ["k2_computing"], // needs the gas-giant harvester online — the last in-system body
+  desc: "Nested computational Dyson shells wrapping the Sun, each radiating into the next. A mind the mass of a star. It produces Insight, the ability to think beyond this crude matter. Building it will take more mass than the solar system holds — the neighboring stars beckon.",
 };
 BUILDINGS.matrioshka_seed = {
   name: "Matrioshka Seed",
@@ -620,16 +623,18 @@ export const TECHS = {
   replication:     { name: "Replication",                cost: 50,       requires: [],                desc: "Permits a Replica to build another Replica. The exponential begins." },
   ion_thrusters:   { name: "Ion Thruster Efficiency",    cost: 100,      requires: ["replication"],   desc: "Doubles the build power of your manual Assists." },
   radar:           { name: "Asteroid-Penetrating Radar", cost: 1000,     requires: ["replication"],   desc: "Doubles Metal yield from every Asteroid Mine." },
+  batch_processing:{ name: "Batch Processing",           cost: 2000,     requires: ["replication"],   desc: "Adds a ×10 order button — queue ten of a structure as one job." },
   thin_film:       { name: "Thin-Film Reflectors",       cost: 5000,     requires: ["replication"],   revealKey: "act_1a_grow_complete", desc: "Unlocks Shade Panels. The first step toward dimming the Sun." },
-  batch_processing:{ name: "Batch Processing",           cost: 5000,     requires: ["replication"],   desc: "Adds a ×10 order button — queue ten of a structure as one job." },
-  bulk_processing: { name: "Bulk Processing",            cost: 50000,    requires: ["batch_processing"], revealKey: "act_1a_shade_complete", desc: "Adds a ×1000 order button. One job, a thousand structures." },
+  kinetic_impactors: { name: "Kinetic Impactors",        cost: 3.0e6,    requires: ["radar"],         revealKey: "act_1b_simulate_complete", desc: "Short-period comets, nudged from their orbits, are walked across the moons ahead of the mining fleet. The crust arrives pre-shattered. Quintuples Metal yield from every moon-tier Mine." },
+  high_power_servos: { name: "High-Power Servos",        cost: 6.0e6,    requires: ["replication"],   revealKey: "act_1b_simulate_complete", desc: "Rebuilds every Replica's actuators past their rated duty cycle. They will not last as long. There are more of them than there is time. Quintuples Replica build power." },
+  bulk_processing: { name: "Bulk Processing",            cost: 20000,    requires: ["batch_processing"], revealKey: "act_1a_shade_complete", desc: "Adds a ×1000 order button. One job, a thousand structures." },
   multithreading:  { name: "Multithreading",             cost: 16000,    requires: ["batch_processing"], revealKey: "act_1a_shade_complete", desc: "Dispatch sixteen build orders per command. Adds a ×16 toggle to Construction — each build button then queues sixteen batches at once." },
   resource_realignment: { name: "Resource Realignment",  cost: 20000,    requires: ["multithreading"],   revealKey: "act_1a_shade_complete", desc: "Reclaim queued orders. Adds a recycle control to each job in the Build Queue that cancels it and refunds its full Metal cost to your reserves." },
   duplication:     { name: "Duplication",                 cost: 1.0e9,    requires: ["bulk_processing"], revealKey: "act_1b_ark_complete", desc: "Self-doubling assembly. Adds a ×2 button that queues as many of a structure as you already own — one click doubles your fleet. The exponential, on demand." },
   mega_processing: { name: "Mega Processing",            cost: 5.0e6,    requires: ["bulk_processing", "thin_film"],  revealKey: "act_1b_scan_complete", desc: "Adds a ×1,000,000 order button." },
-  giga_processing: { name: "Giga Processing", cost: 5.0e9, requires: ["mega_processing"], desc: "Adds a ×1,000,000,000 order button." },
-  tera_processing: { name: "Tera Processing", cost: 5.0e12, requires: ["giga_processing"], desc: "Adds a ×1,000,000,000,000 order button." },
-  peta_processing: { name: "Peta Processing", cost: 5.0e15, requires: ["tera_processing"], revealKey: "act_1b_ark_complete", desc: "Adds a ×1,000,000,000,000,000 order button. The queue stops being a bottleneck." },
+  giga_processing: { name: "Giga Processing", cost: 2.0e9, requires: ["mega_processing"], desc: "Adds a ×1,000,000,000 order button." },
+  tera_processing: { name: "Tera Processing", cost: 2.0e12, requires: ["giga_processing"], desc: "Adds a ×1,000,000,000,000 order button." },
+  peta_processing: { name: "Peta Processing", cost: 2.0e15, requires: ["tera_processing"], revealKey: "act_1b_ark_complete", desc: "Adds a ×1,000,000,000,000,000 order button. The queue stops being a bottleneck." },
 };
 
 // Standalone infrastructure techs. Each unlocks a single new building (see BUILDINGS).
@@ -699,8 +704,15 @@ TECHS.centrosphere = {
   name: "Centrosphere Cooling",
   cost: 250000,
   requires: [],
-  revealKey: "core", // hidden until the surface hits 250 K
+  revealKey: "act_2a_snowball_complete", // hidden until the surface hits 250 K
   desc: "Unlocks the Core Heat Pipe — the only way past the temperature floor the planet's own molten core imposes.",
+};
+TECHS.k2_computing = {
+  name: "K2 Computing",
+  cost: 1.0e9,
+  requires: [],
+  revealKey: "act_2a_needle_complete",
+  desc: "A Brain that runs at stellar scale. Unlocks the Sol Matrioshka Brain — Dyson swarm around a Dyson swarm around a Dyson swarm. Every photon converted to thought.",
 };
 TECHS.k3_distributed_processing = {
   name: "K3 Distributed Processing",

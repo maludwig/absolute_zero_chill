@@ -15,8 +15,9 @@ import { STORY_CHAIN } from "./story.js";
 import { getQuestByKey, onLoadCompletedQuests, FIRST_QUEST_KEY } from "./quests.js";
 import { initMilestones, healMilestones } from "./milestones.js";
 import {
-  EXPLORE_SYSTEMS, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, systemReserve,
+  EXPLORE_SYSTEMS, EXPLORE_DERIVED, systemReserve,
   DRIVER_MINED_GATE, harvesterStartCost, recycleDone, EXPLORE_DAYS_PER_SEC,
+  travelDays, streamDays, isPowerOfTen,
   PROBE_COST, DRIVER_BUILD_SECONDS, DRIVER_SHIP_DAYS,
   stepMassBeam, deliverBeam,
 } from "./explore.js";
@@ -237,18 +238,30 @@ export function createStore() {
       remaining(bodyId) {
         const b = BODIES.find((x) => x.id === bodyId);
         if (!b) return 0;
-        return Math.max(0, b.mass - (this.mined[bodyId] || 0));
+        return this.remainingMass(b);
       },
 
+      remainingMass(body) {
+        return Math.max(0, body.mass - (this.mined[body.id] || 0));
+      },
+
+      // Yield multiplier for one body's mines. Shared by metalPerSec (the readout)
+      // and tick()'s integrator (the truth) — they must never disagree.
+      mineMult(b) {
+        let m = 1;
+        if (b.radar && this.research.done.radar) m *= CONFIG.radarMineMult;
+        if (b.tier === "moon" && this.research.done.kinetic_impactors) m *= CONFIG.impactorMineMult;
+        return m;
+      },
       get metalPerSec() {
         let r = 0;
         for (const b of BODIES) {
           const c = this.owned[b.mineId] || 0;
           if (c <= 0) continue;
           if (!this.breakerOn[b.mineId]) continue; // powered off — not mining
-          const rem = this.remaining(b.id);
+          const rem = Math.max(0, b.mass - (this.mined[b.id] || 0));
           if (rem <= 0) continue;
-          const mult = b.radar && this.research.done.radar ? 2 : 1;
+          const mult = this.mineMult(b);
           r += c * b.fullRate * Math.max(rem / b.mass, CONFIG.mineRateFloor) * mult;
         }
         return r;
@@ -295,7 +308,16 @@ export function createStore() {
       },
       get relocated() { return this.galaxy.relocateDay0 != null && this.relocationProgress >= 1; },
 
-      get buildPower() { return this.owned.replica * CONFIG.replicaBuildPerSec; },
+      // High-Power Servos multiplies the Replica fleet only — your manual Assists
+      // (playerBuildPower) are governed by ion_thrusters and are untouched.
+      get servoMult() { return this.research.done.high_power_servos ? CONFIG.servoBuildMult : 1; },
+      // Replica build output, per real second. This is the RATE (readout, telemetry).
+      get buildPower() { return this.owned.replica * CONFIG.replicaBuildPerSec * this.servoMult; },
+      // Replica build output for one tick of length dt. THE single source of build
+      // labour: the readout above and tick()'s integrator must never diverge, which is
+      // exactly what happened when high_power_servos was applied to the getter while
+      // tick() re-derived the raw product. Multiply the rate by dt here, nowhere else.
+      tickBuildPower(dt) { return this.buildPower * dt; },
       get researchPower() {
         // idle Replicas (only when not building and their breaker is on)…
         const replica = (!this.breakerOn.replica || this.buildQueue.length)
@@ -525,6 +547,27 @@ export function createStore() {
       // so a ×16 order simply builds as many as you can afford (never nothing).
       enqueue(id, count) {
         count = count || 1;
+        // Hard invariant: a build order is either a MULTS order (a power of ten) or a
+        // Duplication order (×2 — "queue as many as you already own", clamped to the
+        // building's remaining capacity). A ×16 multithreaded order goes through
+        // enqueueMultithreaded, which divides back down to one of those two shapes
+        // before landing here. Anything else is a caller bug — e.g. a clamped batch
+        // misread as multithreaded, which queued sixteen jobs of 0.5625 of a building.
+        // Throw loudly rather than quietly build a fraction of a structure.
+        //
+        // (remainingCapacity is Infinity for uncapped buildings, so the doubling test is
+        // just `count === owned` there, and stays true across all 16 multithreaded
+        // iterations. For capped ones, enqueueMultithreaded's own `cap < count` guard
+        // stops the loop before the clamp could drift.)
+        const ownedNow = this.owned[id] || 0;
+        const isDoubling = ownedNow > 0 && count === Math.min(ownedNow, this.remainingCapacity(id));
+        if (!isPowerOfTen(count) && !isDoubling) {
+          throw new Error(
+            `enqueue("${id}", ${count}): count must be a power of ten, or a Duplication ` +
+            `doubling of the ${ownedNow} already owned (got ${count}). ` +
+            `A ×16 multithreaded order must go through enqueueMultithreaded.`
+          );
+        }
         if (!BUILDINGS[id] || !this.buildingUnlocked(id)) return;
         const body = MINE_TO_BODY[id] || INFRA_TO_BODY[id];
         if (body && this.depleted[body.id]) return; // body exhausted — no new mines or infra
@@ -627,11 +670,17 @@ export function createStore() {
         r -= s.shipped;
         return Math.max(0, r);
       },
-      sysArrived(name) {
-        const s = this.explore.sys[name];
-        if (!s.launched) return false;
-        const def = EXPLORE_SYS_BY_NAME[name];
-        return (this.explore.day - s.launchDay) >= (def.distance / s.speed) * 365;
+      // { systemName: boolean } — the probe has reached the system. Purely derived
+      // from (day - launchDay) vs the light-lag, so it is NOT persisted and cannot
+      // desync from explore.day. Read it as a lookup, mirroring `depleted[bodyId]`:
+      //   store.arrived["Alpha Centauri"]
+      get arrived() {
+        const out = {};
+        for (const def of EXPLORE_SYSTEMS) {
+          const s = this.explore.sys[def.name];
+          out[def.name] = !!s?.launched && (this.explore.day - s.launchDay) >= travelDays(def, s.speed);
+        }
+        return out;
       },
       setFramejack(n) {
         this.explore.framejack = n;
@@ -727,7 +776,7 @@ export function createStore() {
       },
       buildHarvester(name, cat) {
         const s = this.explore.sys[name];
-        if (!s || !this.sysArrived(name)) return;
+        if (!s || !this.arrived[name]) return;
         const st = s.cats[cat];
         if (!st || st.phase !== "idle") return;
         const d = EXPLORE_DERIVED[name];
@@ -746,7 +795,7 @@ export function createStore() {
       },
       buildDriver(name) {
         const s = this.explore.sys[name];
-        if (!s || !this.sysArrived(name) || s.driver.phase !== "idle") return;
+        if (!s || !this.arrived[name] || s.driver.phase !== "idle") return;
         const d = EXPLORE_DERIVED[name];
         if (!d.present.every((c) => s.cats[c].phase !== "idle")) return;
         if (this.sysReserve(name) < DRIVER_MINED_GATE * d.nonStarMass) return;
@@ -768,13 +817,14 @@ export function createStore() {
       tickExplore(dt) {
         const E = this.explore;
         const dayStep = EXPLORE_DAYS_PER_SEC * dt; // the day itself is advanced in tick(); this drives the per-system economy
+        const arrived = this.arrived; // build the lookup once, not once per system
         for (const def of EXPLORE_SYSTEMS) {
           const s = E.sys[def.name];
           if (!s.launched) continue;
           const d = EXPLORE_DERIVED[def.name];
-          const streamDays = (def.distance / 0.9) * 365; // interstellar transit time for this system
+          const streamDaysHere = streamDays(def); // interstellar transit time for this system
 
-          if ((E.day - s.launchDay) < (def.distance / s.speed) * 365) continue; // still in transit
+          if (!arrived[def.name]) continue; // still in transit
 
           for (const c of d.present) {
             const st = s.cats[c], m = d.models[c];
@@ -816,7 +866,7 @@ export function createStore() {
 
             // Delivery (framejack-invariant): credit metal as each packet's slug crosses
             // Sol, advancing per-packet cursors and dropping fully-delivered packets.
-            const del = deliverBeam({ today: E.day, systemDelayDays: streamDays, packets: s.beamPackets });
+            const del = deliverBeam({ today: E.day, systemDelayDays: streamDaysHere, packets: s.beamPackets });
             s.beamPackets = del.packets;
             if (del.delivered > 0) { this.metal += del.delivered; E.returned += del.delivered; }
 
@@ -984,6 +1034,7 @@ export function createStore() {
         let _pt = P ? performance.now() : 0;
         this.t += dt;
 
+        if (P) _pt = this._pfNext("init", _pt);
         // metal income — each mine harvests fullRate × max(remaining/mass, floor).
         // Above the floor the body depletes exponentially (rem' = -K·rem); below it
         // the rate holds constant so the tail drains linearly and finishes in bounded
@@ -1000,9 +1051,9 @@ export function createStore() {
           const c = this.owned[b.mineId] || 0;
           if (c <= 0) continue;
           if (!this.breakerOn[b.mineId]) continue; // powered off — not mining
-          const rem = this.remaining(b.id);
+          const rem = Math.max(0, b.mass - (this.mined[b.id] || 0));
           if (rem <= 0) continue;
-          const mult = b.radar && this.research.done.radar ? 2 : 1;
+          const mult = this.mineMult(b);
           const K = c * b.fullRate * mult / b.mass;        // per-day fractional rate constant
           const floorMass = floor * b.mass;                 // remaining level where the floor engages
           const linRate = c * b.fullRate * mult * floor;    // constant tonnes/day below the floor
@@ -1034,7 +1085,7 @@ export function createStore() {
         // can't absorb spills into the selected research at the research rate — so
         // a 1-tick build no longer wastes the remainder of the tick, and an empty
         // queue feeds research exactly as idle replicas always did.
-        const bpTotal = this.owned.replica * CONFIG.replicaBuildPerSec * dt;
+        const bpTotal = this.tickBuildPower(dt);
         if (bpTotal > 0 && !this.breakerOn.replica) {
           // Replica breaker off: emergency power — build at 1/20th speed, and only on
           // the LAST queued item, so the player can panic-queue a generator and have it
@@ -1074,8 +1125,13 @@ export function createStore() {
           if (pool > 1e-9) {
             const sel = this.research.selected;
             if (sel && !this.research.done[sel]) {
-              // unused build-labour converts to research at the research rate
-              this.research.progress[sel] += pool * (CONFIG.replicaResearchPerSec / CONFIG.replicaBuildPerSec);
+              // Unused build-labour converts to research at the research rate. Divide the
+              // servo multiplier back out first: High-Power Servos rebuilds actuators,
+              // not cognition — an idle Replica must still research at its base rate, or
+              // servos would silently become a research multiplier and desync the
+              // researchPower getter (which has, correctly, no servo term).
+              this.research.progress[sel] +=
+                (pool / this.servoMult) * (CONFIG.replicaResearchPerSec / CONFIG.replicaBuildPerSec);
               this.finishTechIfDone(sel);
             }
           }
@@ -1094,6 +1150,7 @@ export function createStore() {
             this.finishTechIfDone(sel);
           }
         }
+        if (P) _pt = this._pfNext("sci", _pt);
 
         // Construction Logistics — a powered unit works through LOGISTICS_PLAN one step
         // per idle tick: when the queue is empty and the next planned step is affordable,
@@ -1130,7 +1187,7 @@ export function createStore() {
             }
           }
         }
-        if (P) _pt = this._pfNext("sci+logistics", _pt);
+        if (P) _pt = this._pfNext("logistics", _pt);
 
         // core drain: Core Heat Pipes conduct heat out (P = kA·ΔT/L). This is a
         // linear relaxation of coreHeat toward equilibrium (coreTemp == surfaceTemp,
@@ -1361,7 +1418,7 @@ export function createStore() {
         // per-tick remaining() call for every unmined/exhausted body).
         for (const b of BODIES) {
           if (this.depleted[b.id] || (this.owned[b.mineId] || 0) <= 0) continue;
-          const rem = this.remaining(b.id);
+          const rem = this.remainingMass(b);
           if (rem <= b.mass * CONFIG.depletionDumpFrac && this.mined[b.id] > 0) {
             this.metal += rem;
             this.metalMined += rem;
@@ -1508,7 +1565,8 @@ export function createStore() {
       wedgeSeeded: false,
       canSeed: false,
       sysReserve: false,
-      sysArrived: false,
+      mineMult: false,
+      tickBuildPower: false,
       flags: false,
       eventChains: false,
       eventChainIdx: false,

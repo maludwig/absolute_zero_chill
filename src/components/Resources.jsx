@@ -81,7 +81,7 @@ export const Depletions = observer(function Depletions() {
     if (b.id !== "belt" && (store.owned[b.mineId] || 0) === 0) continue;
     // a fully-exhausted body drops off the panel entirely
     if (store.depleted[b.id]) continue;
-    const rem = store.remaining(b.id);
+    const rem = store.remainingMass(b);
     if (rem <= 0) continue;
     const minedAmt = store.mined[b.id] || 0;
     const minedFrac = minedAmt / b.mass;

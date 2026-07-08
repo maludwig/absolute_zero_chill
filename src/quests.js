@@ -147,8 +147,8 @@ const ACT_2A_STORY_QUESTS = [
     },
   },
   {
-    key: "act_2a_core",
-    questName: "Overshoot",
+    key: "act_2a_snowball",
+    questName: "Snowball",
     todoList: [
       { desc: "Cool the surface to 250 K", test: (s) => s.surfaceTemp <= 250 },
     ],
@@ -158,8 +158,8 @@ const ACT_2A_STORY_QUESTS = [
     },
   },
   {
-    key: "act_2a_pipe",
-    questName: "Core",
+    key: "act_2a_needle",
+    questName: "Needle",
     todoList: [
       { desc: "Research Centrosphere Cooling", test: (s) => s.research.done.centrosphere },
       { desc: "Build a Core Heat Pipe", test: (s) => s.owned.core_heat_pipes >= 1 },
@@ -243,7 +243,7 @@ const ACT_2B_STORY_QUESTS = [
     // revealed.philosophy (the Philosophy panel). The ×100 Framejack research
     // (efficient_underclocking) now reveals off this quest's completion via the
     // milestones derivation (completed: [act_2b_brain]), not a reveal flag.
-    // revealed.brain (Header act-naming) is set upstream by act_2a_pipe. This is the
+    // revealed.brain (Header act-naming) is set upstream by act_2a_needle. This is the
     // Act 2 → Act 3 handoff; ACT_3 quests follow below.
     todoList: [
       { desc: "Build a brain", test: (s) => s.owned.sol_matrioshka_brain >= 1 },
@@ -361,7 +361,7 @@ export function onLoadCompletedQuests(s, completedQuestList) {
 // cap to 1000, and Act 2B's frontier tech (Interstellar Probing) gates on
 // Centrosphere Cooling from Act 2A's Core quest. Composing them as one chain lets
 // the single quest pointer flow straight through (act_1a_shade -> act_1b_scan ->
-// ... -> act_2a_pipe -> act_2b_prime -> ... -> act_2b_brain -> act_3_seed -> ...
+// ... -> act_2a_needle -> act_2b_prime -> ... -> act_2b_brain -> act_3_seed -> ...
 // -> act_3_zero). Act 3's finale line follows straight on from the Brain. Optional
 // / parallel chains (Framejack) are deliberately NOT on this spine.
 const MAIN_STORY_QUESTS = [

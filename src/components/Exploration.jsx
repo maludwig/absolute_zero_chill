@@ -3,7 +3,7 @@ import { store } from "../store.js";
 import {
   EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, EXPLORE_SYSTEMS, CATEGORY_META,
   DRIVER_MINED_GATE, DRIVER_BUILD_SECONDS, harvesterStartCost, PROBE_COST,
-  K_RESERVE, arrivalLoopSpeed,
+  K_RESERVE, arrivalLoopSpeed, travelDays, streamDays,
 } from "../explore.js";
 import { PoweredButton } from "./common.jsx";
 import { FmtValue } from "./FmtValue.jsx";
@@ -85,18 +85,18 @@ const SystemPanel = observer(function SystemPanel({ name }) {
     );
   }
 
-  const travelDays = (def.distance / s.speed) * 365;
+  const travel = travelDays(def, s.speed);
   const elapsed = store.explore.day - s.launchDay;
-  const arrived = elapsed >= travelDays;
+  const arrived = store.arrived[name];
   const reserve = store.sysReserve(name);
 
   let topRow, sub;
   if (!arrived) {
-    const yrsLeft = Math.max(0, (travelDays - elapsed) / 365);
+    const yrsLeft = Math.max(0, (travel - elapsed) / 365);
     sub = <>{s.speed.toFixed(1)}c · <FmtValue value={yrsLeft} unit=" yr" /> to go</>;
-    topRow = <SystemRow solIcon={SOL_ICON} destIcon={destIcon} right={distLabel}><ProbeTravelProgressBar total_distance={travelDays} current_distance={elapsed} speed={s.speed} /></SystemRow>;
+    topRow = <SystemRow solIcon={SOL_ICON} destIcon={destIcon} right={distLabel}><ProbeTravelProgressBar total_distance={travel} current_distance={elapsed} speed={s.speed} /></SystemRow>;
   } else if (s.driver.phase === "done") {
-    const streamDays = (def.distance / 0.9) * 365;
+    const stream = streamDays(def);
     const day = store.explore.day;
     // One band per beamPacket: it departed the source across [departDay, finishedDay]
     // and travels streamDays to Sol, so at time `day` its leading edge (head) is at
@@ -104,8 +104,8 @@ const SystemPanel = observer(function SystemPanel({ name }) {
     // (day-finishedDay)/streamDays — both Dest(0)→Sol(1). MassStreamBar clamps and
     // drops any band fully arrived or not yet departed.
     const bands = s.beamPackets.map((p) => ({
-      head: (day - p.departDay) / streamDays,
-      tail: (day - p.finishedDay) / streamDays,
+      head: (day - p.departDay) / stream,
+      tail: (day - p.finishedDay) / stream,
     }));
     const consumed = s.consumed && s.beamPackets.length === 0; // source dry AND all packets arrived
     if (consumed) {

@@ -65,13 +65,16 @@ const PowerWidget = observer(function PowerWidget() {
 export const Header = observer(function Header() {
   const blot = store.sunBlot;
   // Sneaky dev/easter-egg: within each cycle of Sun clicks, 5 unlocks every Framejack
-  // tier and 10 toggles the dev toolbar (then resets). Counted in a ref so the Header's
+  // tier and toggles the dev toolbar (then resets). Counted in a ref so the Header's
   // per-tick re-renders don't reset it and no UI hints at it.
   const sunClicks = useRef(0);
   const pokeSun = () => {
     const n = ++sunClicks.current;
-    if (n === 5) store.unlockAllFramejack();
-    if (n >= 10) { sunClicks.current = 0; store.toggleDevMode(); }
+    if (n >= 5) {
+      store.unlockAllFramejack();
+      sunClicks.current = 0;
+      store.toggleDevMode();
+    }
   };
   const act = store.cmbrDefeated
     ? "Act III — Absolute Zero"

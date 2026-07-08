@@ -1,5 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { store } from "../store.js";
+import { autoplayer } from "../autoplayer.js";
 
 /* DevBar — a fixed dev toolbar pinned to the bottom of the page, shown only in dev
    mode (toggle it with 10 clicks on the Sun). It surfaces the counters that reveal
@@ -15,6 +16,7 @@ export const DevBar = observer(function DevBar() {
         {profiling ? `profiling… ${store._profTicksLeft}` : "Log tick timing (60t)"}
       </button>
       <button className="devbar-btn" onClick={() => store.clearTelemetryAndLog()}>Clear telemetry + log</button>
+      <button className="devbar-btn" onClick={() => console.log(autoplayer.play(store))}>Autoplay Once</button>
       <span className="devbar-stat">telemetry <b>{store.telemetry.events.length}</b></span>
       <span className="devbar-stat">log <b>{store.log.length}</b></span>
       <span className="devbar-stat">queue <b>{store.buildQueue.length}</b></span>

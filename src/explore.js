@@ -10,6 +10,14 @@ export * from './shared/model.js';
 
 export const EXPLORE_DAYS_PER_SEC = 5; // exploration days per real second (×1 framejack); at dt=0.2 → 1 day/tick
 export const PROBE_COST = 140;          // home metal (T) to launch one probe — a mine plus a replica
+export const STREAM_SPEED_C = 0.9;      // mass-driver beam speed, dest → Sol
+
+/* Interstellar transit times, in game-days. `travelDays` is the outbound probe leg
+   (speed varies: 0.3c, or 0.9c with a powered Stellaser); `streamDays` is the
+   inbound mass-driver beam, always STREAM_SPEED_C. Both take the system def from
+   EXPLORE_SYSTEMS / EXPLORE_SYS_BY_NAME. */
+export const travelDays = (def, speed) => (def.distance / speed) * 365;
+export const streamDays = (def) => (def.distance / STREAM_SPEED_C) * 365;
 
 /* total Metal reserve a system has produced, GAME variant: the 40% start cost is
    a deposit held only while the fleet is deployed — once recycled ("done") the
