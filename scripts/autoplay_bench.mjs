@@ -7,6 +7,8 @@
 // a modal, the real game would sit there forever, and so will this — which is the
 // point. We detect it and report a stall rather than spinning.
 
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { Command, Option, InvalidArgumentError } from "commander";
 import { createStore } from "../src/store.js";
 import { autoplayer } from "../src/autoplayer.js";
@@ -43,6 +45,7 @@ const program = new Command()
   .addOption(new Option("-s, --stall <n>", "abort after this many ticks with no quest completing")
     .argParser(positiveInt("--stall")).default(DEFAULT_STALL, DEFAULT_STALL.toLocaleString("en-US")))
   .addOption(new Option("-u, --until <quest>", "stop as soon as this quest completes").choices(ALL_QUESTS))
+  .option("--save-dir <dir>", "write <dir>/<quest>.json at each quest completion (created if missing)")
   .option("--trace", "print every autoplayer action (very loud)", false)
   .option("--actions", "print a per-quest action histogram", false)
   .option("-q, --quiet", "suppress the live progress lines on stderr", false)
@@ -52,6 +55,7 @@ Examples:
   $ node scripts/autoplay_bench.mjs --ticks 20000      cap the budget
   $ node scripts/autoplay_bench.mjs --until act_2b_beam
   $ node scripts/autoplay_bench.mjs --actions --quiet  histogram only
+  $ node scripts/autoplay_bench.mjs --save-dir my_saves loadable save per quest
 
 The questline has ${ALL_QUESTS.length} quests, from ${ALL_QUESTS[0]} to ${ALL_QUESTS[ALL_QUESTS.length - 1]}.`)
   .parse();
@@ -63,6 +67,11 @@ const until = opts.until ?? null;
 const trace = opts.trace;
 const showActions = opts.actions;
 const quiet = opts.quiet;
+const saveDir = opts.saveDir ?? null;
+
+// Fail fast: an unwritable --save-dir should abort before a long run, not after it.
+if (saveDir) mkdirSync(saveDir, { recursive: true });
+
 
 // ---------------------------------------------------------------------------
 
@@ -84,6 +93,15 @@ const secs = (t) => {
 
 const t0 = Date.now();
 const store = createStore();
+
+// Snapshot the store the moment a quest completes. saveText() is the same versioned
+// JSON the in-game download button produces, so these load straight into the game —
+// which is the point: they let you jump to mid/late game without replaying Act I.
+// Quests that complete on the same tick share an identical snapshot, by definition.
+const writeSave = (questKey) => {
+  if (!saveDir) return;
+  writeFileSync(join(saveDir, `${questKey}.json`), store.saveText());
+};
 const rows = [];                 // one per completed quest
 const actionCounts = new Map();  // questKey -> Map(action -> n)
 let pausedStreak = 0;
@@ -141,6 +159,7 @@ for (; tick < maxTicks; tick++) {
     for (let i = prevDone; i < store.completedQuests.length; i++) {
       const key = store.completedQuests[i];
       rows.push({ key, ...snapshot(), ticks: tick - prevTick });
+      writeSave(key);
       prevTick = tick;
     }
     prevDone = store.completedQuests.length;

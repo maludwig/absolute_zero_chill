@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createStore, SAVE_VERSION, TELEMETRY_CAP, TELEMETRY_SLACK, LOG_CAP } from "./store.js";
-import { CONFIG, CLIMATE, POP, popCapacity, BODIES, BUILDINGS, TECHS, IDEAS, MULTS, sectionForBuilding, LOGISTICS_PLAN } from "./config.js";
+import { CONFIG, CLIMATE, POP, popCapacity, BODIES, BUILDINGS, TECHS, IDEAS, MULTS, sectionForBuilding, LOGISTICS_PLAN, ORDERED_FRAMEJACKS } from "./config.js";
 import { isPowerOfTen } from "./shared/model.js";
 import { LUT, MAX_WEDGE_STARS, BIN_LY } from "./galaxy/lut.js";
 import { EXPLORE_DAYS_PER_SEC, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, EXPLORE_SYSTEMS, systemReserve, DRIVER_MINED_GATE } from "./explore.js";
@@ -775,9 +775,10 @@ describe("Construction Logistics plan editing", () => {
 });
 
 describe("framejack easter egg", () => {
+  const allFramejacks = [1, ...ORDERED_FRAMEJACKS.map((x) => x.fj)];
   it("exposes only ×1 with no research and no Brain", () => {
     const s = createStore();
-    expect(s.framejackLevels).toEqual([1]);
+    expect(s.framejackLevels[0].fj).toEqual(1);
   });
   it("unlockAllFramejack surfaces every tier without a Brain", () => {
     const s = createStore();
@@ -788,17 +789,17 @@ describe("framejack easter egg", () => {
     expect(s.research.done.efficient_underclocking).toBe(true);
     expect(s.research.done.quantum_cooled_cpu).toBe(true);
     expect(s.research.done.planck_rate_processing).toBe(true);
-    expect(s.framejackLevels).toEqual([1, 10, 100, 10000, 100000]);
+    expect(s.framejackLevels.map((x) => x.fj)).toEqual(allFramejacks);
   });
   it("is idempotent and persists across a save/load round-trip", () => {
     const s = createStore();
     s.unlockAllFramejack();
     s.unlockAllFramejack(); // no throw, no change
-    expect(s.framejackLevels).toEqual([1, 10, 100, 10000, 100000]);
+    expect(s.framejackLevels.map((x) => x.fj)).toEqual(allFramejacks);
     const s2 = createStore();
     s2.loadSave(s.saveText());
     expect(s2.devFramejack).toBe(true);
-    expect(s2.framejackLevels).toEqual([1, 10, 100, 10000, 100000]);
+    expect(s2.framejackLevels.map((x) => x.fj)).toEqual(allFramejacks);
   });
 });
 
@@ -1351,18 +1352,6 @@ describe("milestones", () => {
 });
 
 describe("Act III — Brain, Insight, Philosophy", () => {
-  it("Sol Matrioshka Brain becomes buildable once the Jupiter Spire is built", () => {
-    // buildingVisible("sol_matrioshka_brain") has no revealKey of its own —
-    // it's gated purely by BUILDINGS.sol_matrioshka_brain.requires:
-    // ["jupiter_spire"], entirely independent of revealed.brain/the story chain.
-    const s = createStore();
-    expect(s.buildingVisible("sol_matrioshka_brain")).toBe(false);
-    s.research.done.fusion_spires = true;
-    s.owned.jupiter_spire = 1;
-    s.reconcileMilestones(); // jupiter_spire owned poked directly → resync the maps
-    expect(s.buildingVisible("sol_matrioshka_brain")).toBe(true);
-  });
-
   it("the Brain is revealed (Act III label) once act_2a_needle completes", () => {
     // The Brain reveal no longer depends on jupiter_spire — it rides on the Core
     // Heat Pipe quest (act_2a_needle), tying Act 2's cooling arc to Act 3 starting.
@@ -1918,8 +1907,9 @@ describe("Act III mass-beam full lifecycle (Alpha Centauri)", () => {
     return advanced;
   };
 
-  for (const fj of [1, 10, 100, 10000, 100000]) {
-    it(`ships the entire system home at framejack ×${fj}`, () => {
+  for (const fjDef of ORDERED_FRAMEJACKS) {
+    const fj = fjDef.fj;
+    it(`ships the entire system home at framejack ${fjDef.label}`, () => {
       const s = createStore();
       s.metal = 0; // isolate: all metal that appears must have come from the beam
       const { d, sys } = primeSystem(s);

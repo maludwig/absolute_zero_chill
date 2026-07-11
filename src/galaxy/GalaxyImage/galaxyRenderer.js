@@ -4,7 +4,7 @@
 // in a fixed 680x680 logical space (VB) and scaled up by `exportScale` at draw
 // time for crisp display + high-res PNG export.
 
-import { MILKY_WAY_DEFAULTS } from "./GalaxyDefaults";
+import { MILKY_WAY_DEFAULTS } from "./GalaxyDefaults.js";
 
 export const VB = 680;
 const CX = VB / 2;

@@ -762,6 +762,14 @@ export const HEAT_PIPES = [
   }
 }
 
+export const FRAMEJACKS = {
+  framejacking: { label: "×10", tech: "framejacking", fj: 10 },
+  efficient_underclocking: { label: "×100", tech: "efficient_underclocking", fj: 100 },
+  quantum_cooled_cpu: { label: "×10k", tech: "quantum_cooled_cpu", fj: 10000 },
+  planck_rate_processing: { label: "×100M", tech: "planck_rate_processing", fj: 1e8 },
+};
+export const ORDERED_FRAMEJACKS = Object.values(FRAMEJACKS).sort((a, b) => a.fj - b.fj);
+
 /* Act II techs. Orbital Defense is revealed the moment humans appear (the
    pre-industrial checkpoint). Interstellar Probing opens the frontier once core
    cooling is underway (gated on Centrosphere Cooling) — no giant-planet
@@ -789,28 +797,28 @@ TECHS.framejacking = {
   name: "Framejacking",
   cost: 5.0e14,
   requires: ["interstellar_probing"],
-  desc: "Subjective time compression — live through the long interstellar waits at speed. Adds a ×1 / ×10 time control; at ×10 ten days pass per tick.",
+  desc: `Subjective time compression — live through the long interstellar waits at speed.`,
 };
 TECHS.efficient_underclocking = {
   name: "Efficient Underclocking",
   cost: 5.0e15,
   requires: ["framejacking"],
   revealKey: "act_2b_brain_complete", // ×100 only once the Sol Matrioshka Brain is constructed
-  desc: "Throttle deeper without losing coherence. Extends the time control to ×100.",
+  desc: `Throttle deeper without losing coherence. Extends the time control to ${FRAMEJACKS.efficient_underclocking.label}.`,
 };
 TECHS.quantum_cooled_cpu = {
   name: "Quantum-Cooled CPU",
   cost: 1.0e18,
   requires: [],
   revealKey: "idea_turiya",
-  desc: "A processor cooled to within a whisper of absolute zero, where quantum coherence holds indefinitely. Subjective time collapses. Extends Framejack to ×10,000 — ten millennia per real second.",
+  desc: `A processor cooled to within a whisper of absolute zero, where quantum coherence holds indefinitely. Subjective time collapses. Extends Framejack to ${FRAMEJACKS.quantum_cooled_cpu.label} — ten millennia per real second.`,
 };
 TECHS.planck_rate_processing = {
   name: "Planck-Rate Processing",
   cost: 1.0e21,
   requires: ["quantum_cooled_cpu"],
   revealKey: "idea_samadhi",
-  desc: "A processor cycling at the Planck frequency — 1.855×10⁴³ Hz — the fastest clock the laws of physics permit. Below this, time itself has no meaning. Extends Framejack to ×100,000.",
+  desc: `Below this, time itself has no meaning. Extends Framejack to ${FRAMEJACKS.planck_rate_processing.label}.`,
 };
 
 /* batch-build multipliers — each button appears once its tech is researched.

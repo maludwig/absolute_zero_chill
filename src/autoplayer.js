@@ -10,8 +10,10 @@
 // store only through the store's own action methods (unpack/enqueue/…), so it
 // stays honest about what a player could actually click.
 
-import { TECHS, MULTS, BUILDINGS, ASSIST_MAX_WORKLOAD, BODIES } from "./config.js";
+import { TECHS, MULTS, BUILDINGS, ASSIST_MAX_WORKLOAD, BODIES, IDEAS, FRAMEJACKS } from "./config.js";
 import { EXPLORE_SYSTEMS, EXPLORE_DERIVED } from "./explore.js";
+import { SLICE_COUNT, WEDGE_COUNT } from "./galaxy/lut.js";
+import { WEDGES_ON_SCREEN } from "./galaxy/overlay.js";
 
 // Every modal that sets store.paused, with the action that clears it. While any of
 // these is open the game does not tick (see App.jsx), so dismissing them is the
@@ -44,6 +46,7 @@ function isPowerOfTen(num) {
   return log % 1 === 0;
 }
 
+const ENDGAME_QUESTS = ["act_3_sail", "act_3_arrive", "act_3_eye", "act_3_zero"]
 
 export const autoplayer = {
   // Gate on placing a NEW order — NOT a cap on queue depth, despite the name. One
@@ -112,7 +115,12 @@ export const autoplayer = {
       store.enqueue(building_id, max_build_mult);
     }
   },
-
+  duplicateBuilding(store, building_id) {
+    if (!store.research.done.duplication) {
+      throw new Error("duplicateBuilding called without duplication tech");
+    }
+    store.enqueue(building_id, store.owned[building_id]);
+  },
   // store.powerNet counts only load that is already BUILT. Everything sitting in the
   // build queue will draw the instant it resolves, so committing against powerNet
   // alone lets several enqueues each "fit" while their sum browns out the grid — and a
@@ -230,13 +238,51 @@ export const autoplayer = {
     }
     return this.assistVisibleTechOrWait(store); // every body exhausted — the system is spent
   },
+  scaleBuildPower(store, max_scale_mult) {
+    if (this.queueFull(store)) return this.assistHeadOrTech(store);
+    if (!store.research.done.duplication) {
+      if (!this.canPowerBatch(store, "replica", max_scale_mult)) {
+        return this.morePowerOrAssistOrWait(store, max_scale_mult);
+      }
+      if (store.buildPower < store.metalPerDay * 0.89) {
+        return this.moreBuildOrPowerOrAssistOrWait(store, "replica", max_scale_mult);
+      }
+    } else {
+      if (!this.canPowerBatch(store, "replica", store.owned.replica)) {
+        if (store.canAffordN("solar_collector", store.owned.solar_collector)) {
+          this.duplicateBuilding(store, "solar_collector");
+          return { action: "duplicate", id: "solar_collector" };
+        }
+      } else {
+        if (store.canAffordN("replica", store.owned.replica)) {
+          this.duplicateBuilding(store, "replica");
+          return { action: "duplicate", id: "replica" };
+        }
+      }
+    }
+    return this.scaleMines(store, max_scale_mult);
+  },
   scaleEconomy(store, max_scale_mult) {
     if (this.queueFull(store)) return this.assistHeadOrTech(store);
-    if (!this.canPowerBatch(store, "replica", max_scale_mult)) {
-      return this.morePowerOrAssistOrWait(store, max_scale_mult);
-    }
-    if (store.buildPower < store.metalPerDay*0.89) {
-      return this.moreBuildOrPowerOrAssistOrWait(store, "replica", max_scale_mult);
+    if (!store.research.done.duplication) {
+      if (!this.canPowerBatch(store, "replica", max_scale_mult)) {
+        return this.morePowerOrAssistOrWait(store, max_scale_mult);
+      }
+      if (store.buildPower < store.metalPerDay * 0.89) {
+        return this.moreBuildOrPowerOrAssistOrWait(store, "replica", max_scale_mult);
+      }
+    } else {
+      if (!this.canPowerBatch(store, "replica", store.owned.replica)) {
+        if (store.canAffordN("solar_collector", store.owned.solar_collector)) {
+          this.duplicateBuilding(store, "solar_collector");
+          return { action: "duplicate", id: "solar_collector" };
+        }
+      } else {
+        if (store.canAffordN("replica", store.owned.replica)) {
+          this.duplicateBuilding(store, "replica");
+          return { action: "duplicate", id: "replica" };
+        }
+      }
     }
     return this.scaleMines(store, max_scale_mult);
   },
@@ -296,6 +342,25 @@ export const autoplayer = {
     }
   },
 
+  ensureSelectedIdea(store) {
+    if (!store.philosophy.selected) {
+      let cheapestIdea = null;
+      let cheapestCost = Infinity;
+      for (const id in IDEAS) {
+        if (store.ideaUnlocked(id) && !store.ideaDone(id)) {
+          const cost = IDEAS[id].cost;
+          if (cost < cheapestCost) {
+            cheapestCost = cost;
+            cheapestIdea = id;
+          }
+        }
+      }
+      if (cheapestIdea) {
+        store.selectIdea(cheapestIdea);
+        return { action: "select_idea", id: cheapestIdea };
+      }
+    }
+  },
   // One step of the interstellar frontier loop, applied to the first system that
   // has work available. Ordered by dependency:
   //   launch a probe → (wait out the light-lag) → harvesters → mass driver.
@@ -341,19 +406,13 @@ export const autoplayer = {
     return null;
   },
 
-  // Framejack is the frontier's clock: interstellar legs take decades of game-time,
-  // so once the research lands, run the world as fast as it's allowed to. Read the
-  // unlocked tiers off the store rather than re-deriving them from techs — the tier
-  // rules are non-obvious (×100+ also needs the Brain built) and live in one place.
-  ensureFramejack(store, maxFramejack = null) {
-    const levels = store.framejackLevels;
-    if (maxFramejack && !levels.includes(maxFramejack)) {
-      throw new Error(`autoplayer.ensureFramejack: maxFramejack ${maxFramejack} is not unlocked`);
+  ensureFramejack(store, fjDef) {
+    if (!store.research.done[fjDef.tech]) {
+      throw new Error(`autoplayer.ensureFramejack: framejack ${fjDef.label} is not unlocked`);
     }
-    const want = maxFramejack ?? levels[levels.length - 1];
-    if (store.explore.framejack !== want) {
-      store.setFramejack(want);
-      return { action: "set_framejack", id: want };
+    if (store.explore.framejack !== fjDef.fj) {
+      store.setFramejack(fjDef.fj);
+      return { action: "set_framejack", id: fjDef.label };
     }
   },
   // Clear any modal that has the game paused. Returns a descriptor, or undefined.
@@ -529,7 +588,7 @@ export const autoplayer = {
       // turn needs every category in that system committed. frontierStep drives both.
       const researchChanged = this.ensureResearchFocus(store, 'framejacking');
       if (researchChanged) return researchChanged;
-      const fj = this.ensureFramejack(store, 10);
+      const fj = this.ensureFramejack(store, FRAMEJACKS.framejacking);
       if (fj) return fj;
       scaleResult = this.frontierStep(store);
       if (scaleResult) return scaleResult;
@@ -540,14 +599,94 @@ export const autoplayer = {
       // scaleMines only reaches once the rest of the system is exhausted, and
       // ~8.2e27 T of metal — most of it beamed home by the frontier. So: keep the
       // frontier fed, keep mining, and buy the Brain the moment it unlocks.
-      const fj = this.ensureFramejack(store, 10);
+      const fj = this.ensureFramejack(store, FRAMEJACKS.framejacking);
       if (fj) return fj;
       scaleResult = this.frontierStep(store);
       if (scaleResult) return scaleResult;
-      scaleResult = this.scaleUpToBuild(store, "sol_matrioshka_brain", maxMult, 1);
-      if (scaleResult) return scaleResult;
-      return this.scaleEconomy(store, maxMult);
+      if (store.metal < 1.0e26) {
+        return this.scaleEconomy(store, maxMult);
+      } else {
+        // We have harvested at least 1 star, scaling mines is irrelevant now
+        if (!store.buildingUnlocked("sol_matrioshka_brain")) {
+          return this.scaleBuildPower(store, maxMult);
+        } else if (store.buildPower * 10 < BUILDINGS.sol_matrioshka_brain.workload) {
+          // If it would take more than 10 ticks to build the Brain, scale the builders first
+          return this.scaleBuildPower(store, maxMult);
+        } else {
+          // Otherwise, build the Brain now
+          return this.enqueueBuilding(store, "sol_matrioshka_brain", 1);
+        }
+      }
     }
+    else if (store.currentQuestKey === 'act_3_seed') {
+      const selectedIdea = this.ensureSelectedIdea(store);
+      if (selectedIdea) return selectedIdea;
+      if (!store.research.done.efficient_underclocking) {
+        const researchChanged = this.ensureResearchFocus(store, 'efficient_underclocking');
+        if (researchChanged) return researchChanged;
+      } else {
+        const fj = this.ensureFramejack(store, FRAMEJACKS.efficient_underclocking);
+        if (fj) return fj;
+      }
+      return this.scaleUpToBuild(store, "tars_seed_launcher", maxMult, 1);
+    }
+    else if (ENDGAME_QUESTS.includes(store.currentQuestKey)) {
+      const selectedIdea = this.ensureSelectedIdea(store);
+      if (selectedIdea) return selectedIdea;
+      if (store.techUnlocked('planck_rate_processing') && !store.research.done.planck_rate_processing) {
+        const researchChanged = this.ensureResearchFocus(store, 'planck_rate_processing');
+        if (researchChanged) return researchChanged;
+      }
+      if (store.research.done.planck_rate_processing) {
+        const fj = this.ensureFramejack(store, FRAMEJACKS.planck_rate_processing);
+        if (fj) return fj;
+      } else {
+        if (store.techUnlocked('quantum_cooled_cpu') && !store.research.done.quantum_cooled_cpu) {
+          const researchChanged = this.ensureResearchFocus(store, 'quantum_cooled_cpu');
+          if (researchChanged) return researchChanged;
+        }
+        if (store.research.done.quantum_cooled_cpu) {
+          const fj = this.ensureFramejack(store, FRAMEJACKS.quantum_cooled_cpu);
+          if (fj) return fj;
+        }
+      }
+
+      if (store.owned.matrioshka_seed < 1) {
+        return this.scaleUpToBuild(store, "matrioshka_seed", maxMult, 1e12);
+      }
+      if (store.buildQueue.length > 0) {
+        return { action: "wait", id: null };
+      }
+      // We should now have all the seeds we will ever need, and we start with a charged TARS launcher.
+      // Now we find the first unseeded slice x wedge
+      let s;
+      for (s = 0; s < SLICE_COUNT; s++) {
+        let b;
+        for (b = 0; b < WEDGE_COUNT; b++) {
+          if (!WEDGES_ON_SCREEN[s][b]) continue; // skip wedges that are not on screen
+          if (!store.wedgeSeeded(s, b)) break;
+        }
+        if (b !== WEDGE_COUNT) {
+          if (store.canSeed(s, b)) {
+            store.seedWedge(s, b);
+            return { action: "seed_wedge", id: s + "/" + b };
+          }
+        }
+      }
+      // Now we have seeded all the galaxy, and all that's left is to sail forth to Sag A*
+      const sailResult = this.scaleUpToBuild(store, "planetary_sail", maxMult, 1);
+      if (sailResult) return sailResult;
+      // Might as well cool the core too
+      if (store.owned.core_heat_pipes < 1e9 && store.buildQueue.length === 0) {
+        this.enqueueBuilding(store, "core_heat_pipes", 1e9);
+        return { action: "enqueue", id: "core_heat_pipes" };
+      }
+      if (store.research.done.zero_return_radiator) {
+        this.enqueueBuilding(store, "black_eye_of_sagittarius", 1);
+        return { action: "enqueue", id: "black_eye_of_sagittarius" };
+      }
+    }
+
     // Default (everything else, for now): buy a single Solar Collector.
     this.enqueueBuilding(store, "solar_collector", 1);
     return { action: "enqueue", id: "solar_collector" };

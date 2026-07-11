@@ -9,6 +9,8 @@ import { LUT, SLICE_COUNT, WEDGE_COUNT, PIE_RADIUS_LY, BIN_LY } from "./lut.js";
 import { frontLy } from "./waves.js";
 import { VB, DRAW_R, SUN_ANGLE } from "./GalaxyImage/galaxyRenderer.js";
 
+import { MILKY_WAY_DEFAULTS } from "./GalaxyImage/GalaxyDefaults.js";
+
 const CX = VB / 2, CY = VB / 2;
 const RMIN_PX = 14;            // Sol's dead-zone radius on the board
 const R_SOL_LY = 26000;        // Sol's distance from the galactic centre
@@ -207,4 +209,24 @@ export function drawDartboard(ctx, g, opts = {}) {
   ctx.fillStyle = "rgba(255,220,80,0.95)"; ctx.fill();
   ctx.beginPath(); ctx.arc(g.solX, g.solY, 2, 0, Math.PI * 2);
   ctx.fillStyle = "#ffffff"; ctx.fill();
+}
+
+export const GALAXY_PARAMS = {
+  ...MILKY_WAY_DEFAULTS,
+  galaxyRadius: 50000, // Sol ~52% out — realistic; outer wedges clip off-frame and are dropped
+  solDistance: 26000,
+  showSol: true,
+  showLabels: true,
+  showRulers: false,
+};
+
+export const GEOM = Object.freeze(dartboardGeom(GALAXY_PARAMS.galaxyRadius, 0));
+
+export const WEDGES_ON_SCREEN = [];
+for (let s = 0; s < SLICE_COUNT; s++) {
+  const sliceWedges = [];
+  for (let b = 0; b < WEDGE_COUNT; b++) {
+    sliceWedges.push(wedgeOnScreen(s, b, GEOM))
+  }
+  WEDGES_ON_SCREEN.push(sliceWedges);
 }

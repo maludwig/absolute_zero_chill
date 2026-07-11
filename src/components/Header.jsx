@@ -17,8 +17,8 @@ const FramejackControl = observer(function FramejackControl() {
     <div className="fj-toggle hd-fj">
       <span className="fj-label">Framejack</span>
       <div className="fj-seg">
-        {store.framejackLevels.map((lv) => (
-          <PoweredButton key={lv} className={fj === lv ? "on" : ""} onClick={() => store.setFramejack(lv)}>×{lv}</PoweredButton>
+        {store.framejackLevels.map((fjDef) => (
+          <PoweredButton key={fjDef.fj} className={fj === fjDef.fj ? "on" : ""} onClick={() => store.setFramejack(fjDef.fj)}>{fjDef.label}</PoweredButton>
         ))}
       </div>
     </div>

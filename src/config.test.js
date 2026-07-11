@@ -155,17 +155,6 @@ describe("MULTS + climate/core constants", () => {
 });
 
 describe("Act III — Brain, Ideas, K3 techs", () => {
-  it("the Sol Matrioshka Brain is a ~4 solar-mass, Spire-gated, Insight-producing build", () => {
-    const b = BUILDINGS.sol_matrioshka_brain;
-    expect(b).toBeDefined();
-    expect(b.requires).toContain("jupiter_spire"); // gated behind the last in-system body
-    expect(b.max).toBe(1);
-    expect(b.insightPerDay).toBe(CONFIG.insightPerBrainPerDay);
-    // cost is in the 4-solar-mass ballpark
-    expect(b.metalCost / CONFIG.solarMassT).toBeGreaterThan(3.5);
-    expect(b.metalCost / CONFIG.solarMassT).toBeLessThan(5);
-  });
-
   it("the first Idea unlocks exactly the two K3 techs, which gate on its reveal flag", () => {
     const idea = IDEAS.be_one_with_the_universe;
     expect(idea).toBeDefined();

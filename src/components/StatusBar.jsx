@@ -25,6 +25,8 @@ export const StatusBar = observer(function StatusBar() {
   // (nothing pending → everything buildable is done), otherwise the live figures.
   const queuePct = queueLen === 0 ? 100 : Math.round(store.buildQueueFrac * 100);
 
+  const fjDef = store.framejackLevels.find((fj) => fj.fj === store.explore.framejack);
+
   return (
     <div className="status-bar">
       <div className="sb-inner">
@@ -45,7 +47,7 @@ export const StatusBar = observer(function StatusBar() {
           <span className="sb-item sb-metal"><FmtValue value={store.metal} unit=" T" /></span>
           <span className="sb-item sb-year">Yr {store.gameYear}</span>
           <span className="sb-item sb-temp">{fmtTemp(store.surfaceTemp)}</span>
-          {showFj && <span className="sb-item sb-fj">⏩ ×{store.explore.framejack}</span>}
+          {showFj && <span className="sb-item sb-fj">⏩ {fjDef.label}</span>}
           <span className="sb-item sb-queue">
             <span className="sb-q-icon" aria-hidden="true">⚒</span>
             {queueLen} · {queuePct}%

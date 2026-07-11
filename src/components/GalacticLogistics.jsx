@@ -7,7 +7,7 @@ import { LUT, SLICE_COUNT, BIN_LY } from "../galaxy/lut.js";
 import GalaxyImage from "../galaxy/GalaxyImage/GalaxyImage.jsx";
 import { VB } from "../galaxy/GalaxyImage/galaxyRenderer.js";
 import { MILKY_WAY_DEFAULTS } from "../galaxy/GalaxyImage/GalaxyDefaults.js";
-import { dartboardGeom, pixelToCell, eventToCanvasPx, drawDartboard, wedgeOnScreen } from "../galaxy/overlay.js";
+import { dartboardGeom, pixelToCell, eventToCanvasPx, drawDartboard, wedgeOnScreen, GEOM, GALAXY_PARAMS } from "../galaxy/overlay.js";
 import { Panel } from "./common.jsx";
 
 /* Galactic Logistics — the polar dartboard over a top-down Milky Way. Each wedge
@@ -19,16 +19,6 @@ import { Panel } from "./common.jsx";
 
    Sol sits ~52% out (realistic), so the 80k-ly board overruns the canvas — wedges
    that would clip off-frame are simply not drawn, and aren't clickable. */
-
-const GALAXY_PARAMS = {
-  ...MILKY_WAY_DEFAULTS,
-  galaxyRadius: 50000, // Sol ~52% out — realistic; outer wedges clip off-frame and are dropped
-  solDistance: 26000,
-  showSol: true,
-  showLabels: true,
-  showRulers: false,
-};
-const geom = () => dartboardGeom(GALAXY_PARAMS.galaxyRadius, 0);
 
 const azimuthLabel = (s) => (s === 0 ? "→ Sgr A★" : Math.round((s * 360) / SLICE_COUNT) + "° from centre");
 const bandLabel = (b) => Math.round((b * BIN_LY) / 1000) + "–" + Math.round(((b + 1) * BIN_LY) / 1000) + "k ly";
@@ -50,7 +40,7 @@ export const GalacticLogistics = observer(function GalacticLogistics() {
     const ctx = cvs.getContext("2d");
     if (!ctx) return; // jsdom / headless
     const waves = store.galaxy.waves.map((w) => ({ s: w.s, b: w.b, dayLaunched: w.dayLaunched }));
-    drawDartboard(ctx, geom(), { hovered, waves, currentDay: day, probeSpeedC: CONFIG.galaxyProbeSpeedC });
+    drawDartboard(ctx, GEOM, { hovered, waves, currentDay: day, probeSpeedC: CONFIG.galaxyProbeSpeedC });
   }, [day, waveCount, hovered]);
 
   if (!store.revealed.galaxy) return null;
@@ -58,18 +48,16 @@ export const GalacticLogistics = observer(function GalacticLogistics() {
   const onMove = (e) => {
     const cvs = overlayRef.current;
     if (!cvs) return;
-    const g = geom();
     const { mx, my } = eventToCanvasPx(e, cvs);
-    const cell = pixelToCell(mx, my, g);
-    setHovered(cell && wedgeOnScreen(cell.s, cell.b, g) ? cell : null);
+    const cell = pixelToCell(mx, my, GEOM);
+    setHovered(cell && wedgeOnScreen(cell.s, cell.b, GEOM) ? cell : null);
   };
   const onClick = (e) => {
     const cvs = overlayRef.current;
     if (!cvs) return;
-    const g = geom();
     const { mx, my } = eventToCanvasPx(e, cvs);
-    const cell = pixelToCell(mx, my, g);
-    if (!cell || !wedgeOnScreen(cell.s, cell.b, g)) return;
+    const cell = pixelToCell(mx, my, GEOM);
+    if (!cell || !wedgeOnScreen(cell.s, cell.b, GEOM)) return;
     if (store.canSeed(cell.s, cell.b)) { store.seedWedge(cell.s, cell.b); return; }
     // can't launch — if it's specifically a resource shortfall, flash the culprit(s)
     if (store.wedgeSeeded(cell.s, cell.b) || (store.owned.tars_seed_launcher || 0) < 1) return;

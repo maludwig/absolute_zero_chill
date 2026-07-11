@@ -6,7 +6,7 @@ import { makeAutoObservable, toJS } from "mobx";
 import { fmt } from "./prelude.js";
 import {
   CONFIG, BODIES, BUILDINGS, GRID_BUILDINGS, MINE_TO_BODY, INFRA_TO_BODY, TECHS, HEAT_PIPES, CLIMATE, CORE, IDEAS,
-  BASE_HUMAN_POPULATION, POP, popCapacity, SCAN_PER_SCANNER_PER_DAY, LOGISTICS_PLAN,
+  BASE_HUMAN_POPULATION, POP, popCapacity, SCAN_PER_SCANNER_PER_DAY, LOGISTICS_PLAN, ORDERED_FRAMEJACKS
 } from "./config.js";
 import { wedgeStars, MAX_WEDGE_STARS } from "./galaxy/lut.js";
 import { seededFrac, heardFrac } from "./galaxy/waves.js";
@@ -274,13 +274,15 @@ export function createStore() {
       // Built up cumulatively — each tier requires its own tech AND the Brain for ×100+.
       // Higher tiers imply ×100: they build on the same underclocking foundation.
       get framejackLevels() {
-        const hasBrain = (this.owned.sol_matrioshka_brain || 0) >= 1 || this.devFramejack;
-        const levels = [1];
-        if (this.research.done.framejacking) levels.push(10);
-        const canHundred = this.research.done.efficient_underclocking && hasBrain;
-        if (canHundred) levels.push(100);
-        if (canHundred && this.research.done.quantum_cooled_cpu) levels.push(10000);
-        if (canHundred && this.research.done.planck_rate_processing) levels.push(100000);
+        const levels = [{ label: "×1", fj: 1 }];
+        if (this.devFramejack) {
+          levels.push(...ORDERED_FRAMEJACKS);
+          return levels;
+        }
+        for (const fjDef of ORDERED_FRAMEJACKS) {
+          if (!this.research.done[fjDef.tech]) break;
+          levels.push(fjDef);
+        }
         return levels;
       },
       // each researched heat-pipe upgrade multiplies pipe transfer ×10
