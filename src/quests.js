@@ -98,6 +98,11 @@ const ACT_1B_STORY_QUESTS = [
     // The Ark re-instantiates the user, which can't happen until every mind on Earth
     // has been imaged (scanFrac >= 1) and the Ark itself is built and powered — so all
     // three are todos, and their combined test is the completion gate.
+    // NOTE: `powerNet > 0` is deliberate, not incidental. The player is meant to speak
+    // with the re-instantiated user running ON the Ark, so the Ark cannot be offline at
+    // the moment of completion — a browned-out grid means there's no live substrate to
+    // hold the conversation. If a save is parked here with chronically negative power,
+    // the spine intentionally waits until the grid can keep the Ark lit.
     todoList: [
       { desc: "Research Complete User Archival", test: (s) => s.research.done.complete_user_archival },
       { desc: "Finish scanning Earth", test: (s) => s.scanFrac >= 1 },
@@ -332,6 +337,9 @@ function generateStoryChain(quests) {
       action: (s) => {
         quest.onComplete?.(s);
         s.addCompletedQuest(quest.key);       // record completion (store setter — wired later)
+        // One telemetry beat per quest as it completes — this is the single funnel every
+        // quest passes through, so it covers the whole chain. Low-volume (22 quests/run).
+        s.pushTelemetry?.({ type: "quest_complete", quest_key: quest.key, ...(s._rates?.() || {}) });
         s.setQuest(next ? next.key : null);   // null → chain complete
       },
     };

@@ -11,11 +11,12 @@
    wave seeds only its destination wedge, nothing it passes through. */
 
 import { BIN_LY } from "./lut.js";
+import { DAYS_PER_YEAR } from "../shared/model.js";
 
 // Leading-edge distance from Sol, in ly. speedC is a fraction of c.
 export function frontLy(speedC, daysElapsed) {
   if (daysElapsed <= 0) return 0;
-  return speedC * (daysElapsed / 365.25);
+  return speedC * (daysElapsed / DAYS_PER_YEAR);
 }
 
 // Fraction of ring b's radial band that a front at `frontLy` has crossed (0..1).
@@ -45,6 +46,6 @@ export function heardFrac(speedC, daysElapsed, b) {
 // Return-trip timestamps (in days) for the near/far edges of ring b — the window
 // over which this wedge's Insight ramps from 0 to full.
 export function returnWindowDays(speedC, b) {
-  const factor = (1 / speedC + 1) * 365.25; // (1/v + 1/c) years → days, c = 1 ly/yr
+  const factor = (1 / speedC + 1) * DAYS_PER_YEAR; // (1/v + 1/c) years → days, c = 1 ly/yr
   return [b * BIN_LY * factor, (b + 1) * BIN_LY * factor];
 }

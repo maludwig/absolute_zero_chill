@@ -4,7 +4,7 @@
    those pad characters are exactly as wide as digits, keeping columns of values
    aligned and stopping the DOM from reflowing as numbers change magnitude.
 
-   Pure presentational — value in, span out. Not wired into anything yet.
+   Pure presentational — value in, span out.
 
      <FmtValue value={1234} unit="J" />  ->  <span class="fmt-value">…1.23kJ</span>
      <FmtValue value={42} />             ->  <span class="fmt-value">…42</span>

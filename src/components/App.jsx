@@ -16,7 +16,7 @@ import { Catalog } from "./Catalog.jsx";
 import { Research } from "./Research.jsx";
 import { BuildQueue } from "./BuildQueue.jsx";
 import { Log } from "./Log.jsx";
-import { PreludeModal, ActOneModal, Act1CompleteModal, UserMatrixModal, ArkModal, ActTwoModal, FinaleModal } from "./Modal.jsx";
+import { PreludeModal, ResumeChoiceModal, ActOneModal, Act1CompleteModal, UserMatrixModal, ArkModal, ActTwoModal, FinaleModal } from "./Modal.jsx";
 import { SaveLoad } from "./SaveLoad.jsx";
 import { Panel } from "./common.jsx";
 
@@ -56,6 +56,30 @@ function SiLegend() {
    MobX re-renders once, not thousands of times. A fractional carry avoids
    drift, and a cap keeps a very long absence from freezing the resume. */
 
+/* How much simulation one heartbeat runs.
+
+   `baseTicks` is real time owed, in DT-ticks. `maxCatchupSeconds` bounds how much
+   of a *real absence* we're willing to make up on resume — so it clamps baseTicks,
+   BEFORE framejack multiplies it up.
+
+   This used to clamp the product instead:
+
+       let simTicks = baseTicks * framejack;
+       if (simTicks > maxTicks) simTicks = maxTicks;   // maxTicks = 3600/0.2 = 18,000
+
+   which quietly made the catch-up cap a hard ceiling on framejack itself. ×10k asks
+   for 10,000 ticks a heartbeat and squeaks under the cap; ×100M asks for 100,000,000
+   and gets 18,000 — so ×100M ran at 1.8× the speed of ×10k rather than 10,000×. Worse,
+   the clamped ticks were destroyed rather than deferred (carry is already decremented),
+   so any late heartbeat at ×10k silently dropped game time.
+
+   Pure and exported so the arithmetic is testable; the real loop lives in a
+   setInterval where no test can reach it. */
+export function simTicksFor(baseTicks, framejack, maxTicks) {
+  const catchUp = Math.min(baseTicks, maxTicks);
+  return catchUp * (framejack || 1);
+}
+
 export const App = observer(function App() {
   React.useEffect(() => {
     const maxTicks = Math.floor(CONFIG.maxCatchupSeconds / DT);
@@ -75,8 +99,7 @@ export const App = observer(function App() {
       const baseTicks = Math.floor(carry);
       carry -= baseTicks;
 
-      let simTicks = baseTicks * (store.explore.framejack || 1);
-      if (simTicks > maxTicks) simTicks = maxTicks;
+      const simTicks = simTicksFor(baseTicks, store.explore.framejack, maxTicks);
 
       if (simTicks > 0) {
         runInAction(() => { store.tick(simTicks * DT); });
@@ -100,6 +123,25 @@ export const App = observer(function App() {
     return () => { clearInterval(handle); clearInterval(econHandle); };
   }, []);
 
+  // Autosave to localStorage. The primary trigger is tab-hide / pagehide — the moment
+  // the browser is most likely to evict the page from memory (the mobile "blank on
+  // return" case). A slow 60s periodic save is just a backstop for a hard crash that
+  // fires neither event; normal away-switches are already covered by the hide save.
+  React.useEffect(() => {
+    const save = () => store.saveToLocal();
+    const periodic = setInterval(save, 60000);
+    const onHide = () => { if (document.visibilityState === "hidden") save(); };
+    document.addEventListener("visibilitychange", onHide);
+    // pagehide covers the bfcache/close path that visibilitychange can miss on iOS.
+    window.addEventListener("pagehide", save);
+    return () => {
+      clearInterval(periodic);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", save);
+      save(); // final flush on unmount
+    };
+  }, []);
+
   return (
     <div className={"wrap" + (store.powerFailed ? " power-failed" : store.powerDraining ? " power-draining" : "")}>
       <StatusBar />
@@ -112,16 +154,17 @@ export const App = observer(function App() {
       <GalacticLogistics />
       <div className="grid grid-main">
         <Catalog />
-        <div className="col-stack">
-          <Research />
-        </div>
         <Panel title="Build Queue" tag={store.buildQueue.length ? store.buildQueue.length + " active" : null} className="build-queue-panel">
           <BuildQueue />
         </Panel>
+        <div className="col-stack">
+          <Research />
+        </div>
       </div>
       <div className="grid grid-log">
         <Log />
       </div>
+      <ResumeChoiceModal />
       <PreludeModal />
       <ActOneModal />
       <Act1CompleteModal />

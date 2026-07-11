@@ -4,6 +4,19 @@
    lives in prelude.js, one canonical formatter), and `systemReserve` is NOT here
    either — it lives in explore.js alongside the data it operates on. */
 
+/* ---- shared scalar constants (single source of truth) ---- */
+// Days per game-year. A plain 365 by design — this game reckons in millennia and
+// never renders a calendar day, so leap-year precision (365.25 / Gregorian 365.2425)
+// buys nothing and only invites drift between subsystems. Every "× a fraction of c
+// over N years" conversion (probe travel, mass-stream, wave fronts, relocation, the
+// displayed year) routes through this one value.
+export const DAYS_PER_YEAR = 365;
+// Sol's distance to Sagittarius A★, in light-years. One value shared by gameplay
+// (config.relocateDistanceLy — the relocation journey) and the galaxy render
+// (GalaxyDefaults.solDistance / the dartboard's Sol placement), so the map and the
+// mechanic can never disagree.
+export const SOL_TO_SGR_A_LY = 26000;
+
 /* ---- star render helpers ---- */
 export const SPECTRAL = {
   O: "#9bb0ff", B: "#aabfff", A: "#dde6ff", F: "#f6f4ff",
@@ -36,8 +49,8 @@ export const PROBE_WHITE = "#dff3ff";
 export const PROBE_BLUE = "#3fd6ff";
 export function probeColor(speed) { return lerpColor(PROBE_WHITE, PROBE_BLUE, (speed - 0.1) / 0.8); }
 
-// ly per realtime second (1 day = 1 tick, 5 ticks/s, 365 d/yr)
-export function lyPerRealSec(speedC, framejack) { return speedC * (5 / 365) * (framejack || 1); }
+// ly per realtime second (1 day = 1 tick, 5 ticks/s)
+export function lyPerRealSec(speedC, framejack) { return speedC * (5 / DAYS_PER_YEAR) * (framejack || 1); }
 
 /* ---- harvest model ---- */
 export const M0 = 40;            // tonnes, one seed mine

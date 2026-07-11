@@ -12,21 +12,20 @@ describe("Catalog", () => {
     expect(html).toContain("Asteroid Mine");
   });
 
-  it("the +1000 button stays enabled under Multithreading when only one batch (not 16) is affordable", () => {
+  it("offers researched multipliers as dropdown options and enables Build when a batch is affordable", () => {
     runInAction(() => {
       store.research.done.batch_processing = true;
       store.research.done.bulk_processing = true;
       store.research.done.multithreading = true;
       store.multithread = true;
-      store.metal = 40 * 1500; // affords 1 full +1000 batch, not 16
+      store.metal = 40 * 1500; // affords a ×1000 asteroid_mine batch
     });
     const html = renderToString(<Catalog />);
-    // the +1000 button should render without the disabled attribute
-    const idx = html.indexOf("+1000");
-    expect(idx).toBeGreaterThan(-1);
-    const buttonStart = html.lastIndexOf("<button", idx);
-    const buttonTag = html.slice(buttonStart, idx);
-    expect(buttonTag).not.toContain("disabled");
+    // the ×1000 tier is now a dropdown <option>, not a standalone button
+    expect(html).toContain('value="1000"');
+    expect(html).toContain(">×1000<");
+    // and the single Build button renders (uncapped mine → a batch fits → not force-disabled)
+    expect(html).toContain("btn build");
   });
 
   it("shows a Duplication ×2 button once the tech is researched", () => {
@@ -61,7 +60,7 @@ describe("Catalog", () => {
     expect(editHtml).toContain("Construction Logistics");
     expect(editHtml).toContain("card-config"); // the config wrapper rendered
     expect(editHtml).toContain("Build loop");
-    expect(editHtml).toContain("<select");     // editable dropdown rows
+    expect(editHtml).toContain("cfg-bld");     // editable building dropdown rows (editor mode)
     expect(editHtml).toContain("Reset");
     // built + breaker on → running → read-only, edit controls hidden
     runInAction(() => {
@@ -70,7 +69,9 @@ describe("Catalog", () => {
     });
     const lockedHtml = renderToString(<Catalog />);
     expect(lockedHtml).toContain("Switch off to edit");
-    expect(lockedHtml).not.toContain("cfg-qty"); // no dropdowns while locked
+    // cfg-bld is the building dropdown, unique to the logistics editor (the buy-row's
+    // own quantity <select> reuses cfg-qty, so assert on cfg-bld to isolate the editor).
+    expect(lockedHtml).not.toContain("cfg-bld"); // no editable plan rows while locked
     runInAction(() => { store.owned.construction_logistics = 0; }); // restore for later tests
   });
 

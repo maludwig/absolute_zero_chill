@@ -138,6 +138,8 @@ describe("autoplayer power headroom (never oversubscribe the grid)", () => {
     expect(autoplayer.canPowerBatch(store, "replica", N)).toBe(false); // bot: no headroom left
   });
 
+  // 3rd arg raises the 5s default: 7,000 autoplay+tick iterations cross 5s under v8
+  // coverage instrumentation (fine uninstrumented). See store.TODO.md.
   it("drives a long run without ever browning out the grid", () => {
     // Regression for the blackout the queue-blind check used to cause around t=6425.
     // A blackout is unrecoverable without manual breaker flips (see store.test.js),
@@ -150,7 +152,7 @@ describe("autoplayer power headroom (never oversubscribe the grid)", () => {
     }
     expect(store.powerFailed).toBe(false);
     expect(store.completedQuests).toContain("act_1b_ark");
-  });
+  }, 30000);
 });
 
 describe("autoplayer.clampLegal", () => {

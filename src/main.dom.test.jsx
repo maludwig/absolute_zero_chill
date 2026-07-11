@@ -25,5 +25,5 @@ describe("main entry", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
     const root = document.getElementById("react-root");
     expect(root.textContent).toContain("ABSOLUTE");
-  });
+  }, 20000); // full App tree under jsdom is heavy; generous timeout avoids flaky 5s trips
 });

@@ -14,10 +14,10 @@ import "../buildings/DiscreetScannerConfig.jsx";
 const BuildingCard = observer(function BuildingCard({ id }) {
   const b = BUILDINGS[id];
   const unlocked = store.buildingUnlocked(id);
-  // Which buy button the pointer/focus is on: { n, label } so the foot-meta can
-  // preview that batch's cost/workload/power and show the button's own label as a
-  // badge. null = not hovering.
-  const [hover, setHover] = useState(null);
+  // Selected build multiplier (×1, ×10, …). A dropdown picks it and a single Build
+  // button commits it — no hover, which has no meaning on touch. The foot-meta always
+  // previews the selected batch's cost/workload/power, so you see the price before buying.
+  const [sel, setSel] = useState(1);
 
   if (!unlocked) {
     return (
@@ -32,10 +32,6 @@ const BuildingCard = observer(function BuildingCard({ id }) {
     );
   }
 
-  // Preview multiplier: 1 normally, or the hovered button's batch count.
-  const mult = hover ? hover.n : 1;
-  const previewing = mult > 1; // ×1 (Build) changes nothing, so no preview shown
-  const afford = store.canAffordN(id, mult);
   const cap = store.remainingCapacity(id); // Infinity for uncapped buildings
   const effMax = store.buildingMax(id);
   const capped = effMax != null;
@@ -45,14 +41,31 @@ const BuildingCard = observer(function BuildingCard({ id }) {
   const inCargo = store.inventory[id] || 0;        // units waiting in the manifest
   const isGrid = !!b.powerUsage;                   // has a switchable power role → gets a breaker
   const isPower = isGrid || !!b.powerCap;          // any power building → gets the power line
+
+  // The multipliers offered in the dropdown: ×1 plus every researched Processing tier
+  // whose FULL batch could ever fit this building (don't offer ×1000 on a max-100 one).
+  // Capacity here is the theoretical max, not what's affordable — affordability gates the
+  // Build button, not the menu, so the price of a too-expensive batch stays visible.
+  const maxFit = capped ? effMax : Infinity;
+  const multOptions = [{ n: 1, label: "×1" }];
+  for (const m of MULTS) {
+    if (!store.techDone(m.tech)) continue;
+    if (m.n > maxFit) break; // MULTS ascend; once one can't fit, none beyond it can
+    multOptions.push({ n: m.n, label: "×" + m.label.replace(/^\+/, "") });
+  }
+  // Clamp the live selection to what's on offer (a tier can vanish as capacity shrinks).
+  const selValid = multOptions.some((o) => o.n === sel) ? sel : 1;
+  const mult = selValid;
+  const afford = store.canAffordN(id, mult);
+  const fits = mult <= cap;                         // the full batch fits remaining capacity
+  const previewing = mult > 1;                      // ×1 changes nothing, so no "preview" emphasis
   // Only power generators (negative powerUsage) can be built while the grid is dark —
   // that's the recovery path. Everything else uses a normal button that goes inert.
   const BuyBtn = (b.powerUsage && b.powerUsage.W < 0) ? SelfPoweredButton : PoweredButton;
 
-  // build the visible buy buttons: Build (×1) plus each researched multiplier,
-  // clamped to remaining capacity and de-duplicated once the cap is reached.
-  // A mine on an exhausted body shows a Recycle button instead.
-  // Infra buildings (Railgun/Ring/Spire) on an exhausted body simply show DEPLETED.
+  // The buy controls: a quantity dropdown + a single Build button (disabled unless the
+  // full selected batch both fits capacity and is affordable), plus the separate ×2
+  // Duplication button. A mine on an exhausted body shows Recycle; maxed shows MAXED.
   let buttons;
   if (isDepleted) {
     const isMine = !!MINE_TO_BODY[id];
@@ -69,61 +82,48 @@ const BuildingCard = observer(function BuildingCard({ id }) {
   } else if (cap <= 0) {
     buttons = <span className="maxed">MAXED</span>;
   } else {
-    const rows = [{ key: "build", n: 1, label: "Build", cls: "btn" }];
-    let lastEff = 1;
-    for (const m of MULTS) {
-      if (!store.techDone(m.tech)) continue;
-      const eff = Math.min(m.n, cap); // clamp to fitting ONE batch; Multithreading queues
-      if (eff <= lastEff) continue;   // up to 16 of these independently, stopping when one won't fit
-      lastEff = eff;
-      rows.push({ key: m.n, n: eff, label: eff < m.n ? <FmtValue value={eff} forceSign /> : m.label, cls: "btn batch" });
-    }
-    const mainButtons = rows.slice().reverse().map((r) => (
-      <BuyBtn
-        key={r.key}
-        className={r.cls}
-        disabled={!store.canAffordN(id, r.n)}
-        onClick={() => store.multithread
-          ? store.enqueueMultithreaded(id, r.n, 16)
-          : store.enqueue(id, r.n)}
-        onMouseEnter={() => setHover({ n: r.n, label: r.label })}
-        onMouseLeave={() => setHover(null)}
-        onFocus={() => setHover({ n: r.n, label: r.label })}
-        onBlur={() => setHover(null)}
-      >
-        {r.label}
-      </BuyBtn>
-    ));
-
-    // Duplication ×2 — queues as many as you already own (doubling the fleet),
-    // clamped to remaining capacity. Only shown once you own at least one; disabled
-    // if you can't afford the doubling.
+    // ×2 Duplication — queues as many as you already own (doubling the fleet), clamped to
+    // remaining capacity. Shown once you own at least one; disabled if unaffordable.
     let dupButton = null;
     if (store.techDone("duplication") && owned > 0) {
       const dupN = Math.min(owned, cap);
       const dupAfford = dupN > 0 && store.canAffordN(id, dupN);
       dupButton = (
         <BuyBtn
-          key="dup"
           className="btn dup"
           disabled={!dupAfford}
           onClick={() => store.multithread
             ? store.enqueueMultithreaded(id, dupN, 16)
             : store.enqueue(id, dupN)}
-          onMouseEnter={() => setHover({ n: dupN, label: "×2" })}
-          onMouseLeave={() => setHover(null)}
-          onFocus={() => setHover({ n: dupN, label: "×2" })}
-          onBlur={() => setHover(null)}
         >
           ×2
         </BuyBtn>
       );
     }
 
+    const buildLabel = multOptions.length > 1 ? <>Build <span className="build-mult">{"×" + (mult === 1 ? "1" : multOptions.find((o) => o.n === mult).label.slice(1))}</span></> : "Build";
     buttons = (
       <React.Fragment>
+        {multOptions.length > 1 && (
+          <select
+            className="cfg-qty buy-qty"
+            value={selValid}
+            onChange={(e) => setSel(Number(e.target.value))}
+            aria-label="Build quantity"
+          >
+            {multOptions.map((o) => <option key={o.n} value={o.n}>{o.label}</option>)}
+          </select>
+        )}
+        <BuyBtn
+          className="btn build"
+          disabled={!afford || !fits}
+          onClick={() => store.multithread
+            ? store.enqueueMultithreaded(id, mult, 16)
+            : store.enqueue(id, mult)}
+        >
+          {buildLabel}
+        </BuyBtn>
         {dupButton}
-        <div className="buy-main">{mainButtons}</div>
       </React.Fragment>
     );
   }
@@ -148,7 +148,11 @@ const BuildingCard = observer(function BuildingCard({ id }) {
           <span className="card-own breaker-set">
             <span className="breaker-power">
               <span className={"live-kw " + liveCls}>{liveStr}</span>
-              <span className={"brk-lbl off" + (brkOn ? " dim" : "")}>Off</span>
+              <span
+                className={"brk-lbl off brk-tap" + (brkOn ? " dim" : "")}
+                onClick={() => store.setBreaker(id, false)}
+                role="button" aria-label="Switch off"
+              >Off</span>
               <button
                 className={"brk-switch " + (brkOn ? "on" : "off")}
                 role="switch" aria-checked={brkOn}
@@ -157,7 +161,11 @@ const BuildingCard = observer(function BuildingCard({ id }) {
               >
                 <span className="brk-knob" />
               </button>
-              <span className={"brk-lbl on" + (brkOn ? "" : " dim")}>On</span>
+              <span
+                className={"brk-lbl on brk-tap" + (brkOn ? "" : " dim")}
+                onClick={() => store.setBreaker(id, true)}
+                role="button" aria-label="Switch on"
+              >On</span>
             </span>
             <span className="brk-qty">{qtyEl}</span>
           </span>
@@ -185,7 +193,6 @@ const BuildingCard = observer(function BuildingCard({ id }) {
             <span className="wl">workload <FmtValue value={b.workload * mult} /></span>
             {b.powerUsage && b.powerUsage.W > 0 ? <span className="pw-cost draw"><FmtPower power={{ W: -b.powerUsage.W * mult }} forceSign /></span> : null}
             {b.powerUsage && b.powerUsage.W < 0 ? <span className="pw-cost gen"><FmtPower power={{ W: -b.powerUsage.W * mult }} forceSign /></span> : null}
-            {previewing && <span className="meta-mult">{hover.label}</span>}
           </div>
         )}
       </div>

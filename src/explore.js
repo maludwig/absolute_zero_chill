@@ -3,7 +3,7 @@
    can keep importing everything exploration-related from one place, and adds the
    game-specific data tables plus the systemReserve calculation. */
 
-import { harvestModel, categoryReserve, harvesterStartCost } from './shared/model.js';
+import { harvestModel, categoryReserve, harvesterStartCost, DAYS_PER_YEAR } from './shared/model.js';
 
 // re-export the shared helpers so `import { ... } from './explore.js'` keeps working
 export * from './shared/model.js';
@@ -16,8 +16,8 @@ export const STREAM_SPEED_C = 0.9;      // mass-driver beam speed, dest → Sol
    (speed varies: 0.3c, or 0.9c with a powered Stellaser); `streamDays` is the
    inbound mass-driver beam, always STREAM_SPEED_C. Both take the system def from
    EXPLORE_SYSTEMS / EXPLORE_SYS_BY_NAME. */
-export const travelDays = (def, speed) => (def.distance / speed) * 365;
-export const streamDays = (def) => (def.distance / STREAM_SPEED_C) * 365;
+export const travelDays = (def, speed) => (def.distance / speed) * DAYS_PER_YEAR;
+export const streamDays = (def) => (def.distance / STREAM_SPEED_C) * DAYS_PER_YEAR;
 
 /* total Metal reserve a system has produced, GAME variant: the 40% start cost is
    a deposit held only while the fleet is deployed — once recycled ("done") the

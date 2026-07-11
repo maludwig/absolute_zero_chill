@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --config vitest.fast.config.js",
-    "test:all": "vitest run",
+    "test:autoplay": "node scripts/autoplay_bench.mjs --fail-at-tick 5000 --quiet",
+    "test:all": "vitest run && npm run test:autoplay",
     "test:watch": "vitest --config vitest.fast.config.js",
     "coverage": "vitest run --coverage.enabled --coverage.reporter=text"
   },

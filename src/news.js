@@ -36,7 +36,7 @@ export const PROBE_NEWS_CHAIN = [
   },
   {
     key: "news_probe_trouble_1",
-    test: (s) => s.explore.day > 365,
+    test: (s) => s.explore.day > 365, // ~1 game-year in (flavor timing; literal by design)
     action: (s) => s.addNews("Space Exc. Probe Unresponsive, Stocks Plummet?"),
   },
   {

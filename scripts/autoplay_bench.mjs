@@ -45,6 +45,8 @@ const program = new Command()
   .addOption(new Option("-s, --stall <n>", "abort after this many ticks with no quest completing")
     .argParser(positiveInt("--stall")).default(DEFAULT_STALL, DEFAULT_STALL.toLocaleString("en-US")))
   .addOption(new Option("-u, --until <quest>", "stop as soon as this quest completes").choices(ALL_QUESTS))
+  .addOption(new Option("-f, --fail-at-tick <n>", "assert the goal is reached by tick n; exit 1 if not")
+    .argParser(positiveInt("--fail-at-tick")))
   .option("--save-dir <dir>", "write <dir>/<quest>.json at each quest completion (created if missing)")
   .option("--trace", "print every autoplayer action (very loud)", false)
   .option("--actions", "print a per-quest action histogram", false)
@@ -54,14 +56,22 @@ Examples:
   $ node scripts/autoplay_bench.mjs                    run to the end of the questline
   $ node scripts/autoplay_bench.mjs --ticks 20000      cap the budget
   $ node scripts/autoplay_bench.mjs --until act_2b_beam
+  $ node scripts/autoplay_bench.mjs --fail-at-tick 5000 assert the game is still winnable
   $ node scripts/autoplay_bench.mjs --actions --quiet  histogram only
   $ node scripts/autoplay_bench.mjs --save-dir my_saves loadable save per quest
+
+--ticks and --stall are budgets: they stop a runaway or wedged run, and on their own
+say nothing about whether the game is healthy (exit 0). --fail-at-tick is the only
+assertion — it is what makes this script usable as a check.
 
 The questline has ${ALL_QUESTS.length} quests, from ${ALL_QUESTS[0]} to ${ALL_QUESTS[ALL_QUESTS.length - 1]}.`)
   .parse();
 
 const opts = program.opts();
-const maxTicks = opts.ticks;
+const failAtTick = opts.failAtTick ?? null;
+// Once the deadline is blown the verdict is already decided, so there's nothing to
+// learn from simulating past it. --ticks stays the outer budget for unasserted runs.
+const maxTicks = Math.min(opts.ticks, failAtTick ?? Infinity);
 const STALL_TICKS = opts.stall;
 const until = opts.until ?? null;
 const trace = opts.trace;
@@ -218,7 +228,10 @@ const missing = ALL_QUESTS.filter((k) => !doneKeys.has(k));
 console.log("");
 console.log(`completed ${rows.length}/${ALL_QUESTS.length} quests in ${fmt(tick)} ticks (${secs(tick)} of wall-clock play)`);
 if (stalled) console.log(`STALLED — ${stalled}`);
-else if (tick >= maxTicks) console.log(`hit the --ticks ${fmt(maxTicks)} budget`);
+else if (tick >= maxTicks) {
+  const which = failAtTick === maxTicks ? "--fail-at-tick" : "--ticks";
+  console.log(`hit the ${which} ${fmt(maxTicks)} budget`);
+}
 if (missing.length) console.log(`not reached: ${missing.join(", ")}`);
 
 if (showActions) {
@@ -231,4 +244,26 @@ if (showActions) {
   }
 }
 
-process.exit(stalled ? 1 : 0);
+// ---------------------------------------------------------------------------
+// Exit status. Two distinct things can send us home with a 1:
+//
+//   stalled        — no quest progress for --stall ticks, or a modal deadlock. The
+//                    run could not advance, so it fails whether or not it was making
+//                    an assertion. This is the busy-loop guard; it always has teeth.
+//   missed deadline — --fail-at-tick was given and the goal wasn't reached by then.
+//
+// Exhausting a plain --ticks budget is NOT a failure: `--ticks 20000` is an
+// exploratory peek at the early game, not a claim that the game ends there. Only
+// --fail-at-tick turns this balance instrument into a check.
+
+const goal = until ? `"${until}"` : "the full questline";
+const reached = until ? doneKeys.has(until) : missing.length === 0;
+
+let failure = null;
+if (stalled) failure = `stalled before reaching ${goal}`;
+else if (failAtTick && !reached) failure = `never reached ${goal} within ${fmt(failAtTick)} ticks`;
+
+if (failure) console.log(`FAIL — ${failure}`);
+else if (failAtTick) console.log(`PASS — reached ${goal} at tick ${fmt(tick)} of ${fmt(failAtTick)}`);
+
+process.exit(failure ? 1 : 0);

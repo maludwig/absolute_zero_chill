@@ -2,6 +2,7 @@
 // Single source of truth for the galaxy model's default values. Both the
 // standalone app (src/App.jsx) and the <GalaxyImage /> component read from this,
 // so editing a value here changes the default everywhere.
+import { SOL_TO_SGR_A_LY } from "../../shared/model.js";
 export const MILKY_WAY_DEFAULTS = {
   numArms: 4,
   segments: 50,
@@ -13,7 +14,7 @@ export const MILKY_WAY_DEFAULTS = {
   starMaxSize: 1.25,
   glow: 100,
   transparent: false,
-  solDistance: 26000,
+  solDistance: SOL_TO_SGR_A_LY,
   galaxyRadius: 50000,
   showLabels: false,
   showSol: false,

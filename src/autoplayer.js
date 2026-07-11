@@ -14,6 +14,7 @@ import { TECHS, MULTS, BUILDINGS, ASSIST_MAX_WORKLOAD, BODIES, IDEAS, FRAMEJACKS
 import { EXPLORE_SYSTEMS, EXPLORE_DERIVED } from "./explore.js";
 import { SLICE_COUNT, WEDGE_COUNT } from "./galaxy/lut.js";
 import { WEDGES_ON_SCREEN } from "./galaxy/overlay.js";
+import { isPowerOfTen } from "./shared/model.js";
 
 // Every modal that sets store.paused, with the action that clears it. While any of
 // these is open the game does not tick (see App.jsx), so dismissing them is the
@@ -29,22 +30,8 @@ const MODALS = [
   ["showFinaleModal", "dismissFinaleModal", "finale"],
 ];
 
-//  MULTS = [
-//   { n: 10, label: "+10", tech: "batch_processing" },
-//   { n: 1000, label: "+1000", tech: "bulk_processing" },
-//   { n: 1000000, label: "+1M", tech: "mega_processing" },
-//   { n: 1e9, label: "+1G", tech: "giga_processing" },
-//   { n: 1e12, label: "+1T", tech: "tera_processing" },
-//   { n: 1e15, label: "+1P", tech: "peta_processing" },
-// ];
-function isPowerOfTen(num) {
-  if (num <= 0) return false;
-
-  const log = Math.log10(num);
-
-  // Check if the log is an integer (a round number)
-  return log % 1 === 0;
-}
+// isPowerOfTen is imported from shared/model.js (single definition, shared with the
+// store's enqueue invariant) rather than redefined here.
 
 const ENDGAME_QUESTS = ["act_3_sail", "act_3_arrive", "act_3_eye", "act_3_zero"]
 
@@ -237,30 +224,6 @@ export const autoplayer = {
       return this.moreBuildOrPowerOrAssistOrWait(store, body.mineId, mult);
     }
     return this.assistVisibleTechOrWait(store); // every body exhausted — the system is spent
-  },
-  scaleBuildPower(store, max_scale_mult) {
-    if (this.queueFull(store)) return this.assistHeadOrTech(store);
-    if (!store.research.done.duplication) {
-      if (!this.canPowerBatch(store, "replica", max_scale_mult)) {
-        return this.morePowerOrAssistOrWait(store, max_scale_mult);
-      }
-      if (store.buildPower < store.metalPerDay * 0.89) {
-        return this.moreBuildOrPowerOrAssistOrWait(store, "replica", max_scale_mult);
-      }
-    } else {
-      if (!this.canPowerBatch(store, "replica", store.owned.replica)) {
-        if (store.canAffordN("solar_collector", store.owned.solar_collector)) {
-          this.duplicateBuilding(store, "solar_collector");
-          return { action: "duplicate", id: "solar_collector" };
-        }
-      } else {
-        if (store.canAffordN("replica", store.owned.replica)) {
-          this.duplicateBuilding(store, "replica");
-          return { action: "duplicate", id: "replica" };
-        }
-      }
-    }
-    return this.scaleMines(store, max_scale_mult);
   },
   scaleEconomy(store, max_scale_mult) {
     if (this.queueFull(store)) return this.assistHeadOrTech(store);
@@ -526,10 +489,6 @@ export const autoplayer = {
       // If we have already built the Uranian Railgun...
       scaleResult = this.scaleUpToBuild(store, "uranian_mine", maxMult, 1000, 1000);
       if (scaleResult) return scaleResult;
-      // If we have already built the Uranian Mine...
-      // scaleResult = this.scaleUpToBuild(store, "discreet_neural_scanner", maxMult, 10, 500);
-      // if (scaleResult) return scaleResult;
-      // If we have already built 500 scanners...
       scaleResult = this.scaleUpToBuild(store, "discreet_neural_scanner", maxMult, maxMult, 50000);
       if (scaleResult) return scaleResult;
       // If we have already built all the scanners...
@@ -608,13 +567,14 @@ export const autoplayer = {
       } else {
         // We have harvested at least 1 star, scaling mines is irrelevant now
         if (!store.buildingUnlocked("sol_matrioshka_brain")) {
-          return this.scaleBuildPower(store, maxMult);
+          return this.scaleEconomy(store, maxMult);
         } else if (store.buildPower * 10 < BUILDINGS.sol_matrioshka_brain.workload) {
           // If it would take more than 10 ticks to build the Brain, scale the builders first
-          return this.scaleBuildPower(store, maxMult);
+          return this.scaleEconomy(store, maxMult);
         } else {
           // Otherwise, build the Brain now
-          return this.enqueueBuilding(store, "sol_matrioshka_brain", 1);
+          this.enqueueBuilding(store, "sol_matrioshka_brain", 1);
+          return { action: "enqueue", id: "sol_matrioshka_brain" };
         }
       }
     }

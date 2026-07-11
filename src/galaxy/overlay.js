@@ -13,7 +13,10 @@ import { MILKY_WAY_DEFAULTS } from "./GalaxyImage/GalaxyDefaults.js";
 
 const CX = VB / 2, CY = VB / 2;
 const RMIN_PX = 14;            // Sol's dead-zone radius on the board
-const R_SOL_LY = 26000;        // Sol's distance from the galactic centre
+// Sol's distance from the galactic centre — sourced from the galaxy defaults (which get it
+// from shared/model.js's SOL_TO_SGR_A_LY) so the dartboard's Sol can't drift from the
+// painted Sol. Was a local `26000` literal; see overlay.TODO #2.
+const R_SOL_LY = MILKY_WAY_DEFAULTS.solDistance;
 export const SEEDED_COLOR = "#3fd6ff"; // cyan — outbound / seeded
 export const HEARD_COLOR = "#5fe3c0";  // mint — Insight heard back
 
@@ -212,9 +215,8 @@ export function drawDartboard(ctx, g, opts = {}) {
 }
 
 export const GALAXY_PARAMS = {
-  ...MILKY_WAY_DEFAULTS,
+  ...MILKY_WAY_DEFAULTS,               // solDistance comes from here (shared SOL_TO_SGR_A_LY)
   galaxyRadius: 50000, // Sol ~52% out — realistic; outer wedges clip off-frame and are dropped
-  solDistance: 26000,
   showSol: true,
   showLabels: true,
   showRulers: false,

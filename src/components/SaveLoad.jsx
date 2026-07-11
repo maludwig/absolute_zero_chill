@@ -27,6 +27,17 @@ export function SaveLoad() {
 
   const onLoadClick = () => fileRef.current && fileRef.current.click();
 
+  // New Game — download the current run first (so it's never silently lost), then
+  // wipe the autosave and reload into a fresh game. Confirmed, since autosave means
+  // this is now the only way to start over. Without the download-first safety, a
+  // misclick would destroy a long run.
+  const onNewGame = () => {
+    if (!window.confirm("Start a new game? Your current run will be downloaded first, then cleared.")) return;
+    onSave();
+    store.clearLocalSave();
+    window.location.reload();
+  };
+
   const onFile = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -44,6 +55,7 @@ export function SaveLoad() {
     <span className="saveload">
       <button className="btn sl-btn" onClick={onSave}>Save</button>
       <button className="btn sl-btn" onClick={onLoadClick}>Load</button>
+      <button className="btn sl-btn sl-new" onClick={onNewGame} title="Clear the autosave and start over (downloads current run first)">New Game</button>
       <input
         ref={fileRef}
         type="file"

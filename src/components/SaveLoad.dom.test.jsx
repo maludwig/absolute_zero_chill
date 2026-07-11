@@ -29,11 +29,12 @@ afterEach(() => {
 });
 
 describe("SaveLoad", () => {
-  it("renders Save and Load buttons plus a hidden file input", () => {
+  it("renders Save, Load and New Game buttons plus a hidden file input", () => {
     const buttons = container.querySelectorAll("button");
-    expect(buttons.length).toBe(2);
+    expect(buttons.length).toBe(3);
     expect(buttons[0].textContent).toBe("Save");
     expect(buttons[1].textContent).toBe("Load");
+    expect(buttons[2].textContent).toBe("New Game");
     expect(container.querySelector('input[type="file"]')).toBeTruthy();
   });
 

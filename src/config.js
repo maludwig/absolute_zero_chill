@@ -11,7 +11,7 @@
    All non-belt mine rates: fullRate = mineCost / MINE_PAYBACK_S (50 game-days). */
 
 import { convertPower } from "./power_helpers.js";
-import { softLog } from "./shared/model.js";
+import { softLog, DAYS_PER_YEAR, SOL_TO_SGR_A_LY } from "./shared/model.js";
 import BUILDING_POWER from "./building_power.json" with { type: "json" };
 
 // Build a building's powerUsage descriptor from a signed wattage (+ = draw,
@@ -105,14 +105,15 @@ export const CONFIG = {
   humanGrowthPerTick: 0.1,    // human vessels gained per tick while Earth stays habitable
   humanFreezeTemp: 273,       // K — at/below this the oceans freeze; no new vessels launch
   vesselShadeKillPerTick: 0.2, // Shade Panels each human ship destroys per tick
-  maxCatchupSeconds: 3600,    // cap on background catch-up per resume (1 h of sim)
+  maxCatchupSeconds: 3600,    // cap on background catch-up per resume: 1 h of *real* absence,
+                              // clamped before Framejack multiplies it (see simTicksFor in App.jsx)
   solarMassT: 1.989e27,       // one solar mass, in tonnes — the unit of Act III megastructures
   brainRevealMassSol: 4,      // reveal the Sol Matrioshka Brain once reserves cross this many solar masses
   insightPerBrainPerDay: 1,   // Insight produced per day by one Matrioshka Brain
   galaxyProbeSpeedC: 0.9,     // Matrioshka Seed cruise speed, fraction of c (beam-driven by TARS)
   galaxyChargePerDay: 1.0e8,  // TARS launch charge accrued per game-day (Sol-power-limited)
   relocateSpeedC: 0.9,        // speed Earth rides the Nicoll-Dyson beam toward Sgr A★
-  relocateDistanceLy: 26000,  // ly from Sol to the galactic centre
+  relocateDistanceLy: SOL_TO_SGR_A_LY, // ly from Sol to the galactic centre (shared with galaxy render)
 };
 
 /* climate — the surface temperature model. The planet RADIATES toward an
@@ -149,7 +150,7 @@ export const POP = {
   ],
 };
 // per-day gap-close fraction and its complement (the analytic multi-day retain base).
-POP.dailyGapClose = Math.pow(1 + POP.gapClosePerYear, 1 / 365) - 1;
+POP.dailyGapClose = Math.pow(1 + POP.gapClosePerYear, 1 / DAYS_PER_YEAR) - 1;
 POP.dailyGapRetain = 1 - POP.dailyGapClose;
 
 // popCapacity(T) — people the Earth can support at surface temp T. Piecewise-linear
@@ -400,9 +401,9 @@ BUILDINGS.replica = {
   requires: ["replication"],
   desc: "A copy of you. Builds when work is queued, researches when idle. Draws from the grid; switch its breaker off and it falls back to emergency power (slow builds, no research).",
 };
-// Construction Logistics — unlocked by Automated Construction. Currently inert: it
-// draws power and costs metal but has no effect yet (a scaffold for future build
-// automation). max 1.
+// Construction Logistics — unlocked by Automated Construction. Drives the auto-build
+// plan: while built + breaker-on (store.logisticsRunning), the tick works through the
+// editable plan one step per idle tick. Draws power, costs metal. max 1.
 BUILDINGS.construction_logistics = {
   name: "Construction Logistics",
   metalCost: 50000,
@@ -410,17 +411,18 @@ BUILDINGS.construction_logistics = {
   max: 1,
   powerUsage: powerUsageFromKw(1000), // 1 MW draw
   requires: ["automated_construction"],
-  desc: "A coordination core that schedules and routes every construction order across the swarm. Humming, powered, and — for now — waiting for something to coordinate.",
+  desc: "A coordination hub that schedules construction to busy an idle swarm, when humming and powered.",
 };
-// Science Installation — unlocked by Scientific Method. Currently inert: draws power
-// and costs metal, no effect yet. Unlimited (lives in the Thought section).
+// Science Installation — unlocked by Scientific Method. Each powered one contributes
+// scienceRpPerDay (40 RP/game-day) to the focused tech (see store researchPower). Draws
+// power, costs metal. Unlimited (lives in the Thought section).
 BUILDINGS.science_installation = {
   name: "Science Installation",
   metalCost: 1000,
   workload: 20,
   powerUsage: powerUsageFromKw(10), // 10 kW draw
   requires: ["scientific_method"],
-  desc: "A facility built to ask questions and record the answers — instruments, test rigs, and compute, all drawing quietly on the grid. It has not yet been given a question.",
+  desc: "A facility built to ask questions and record the answers — instruments, test rigs, and compute, all drawing quietly on the grid.",
 };
 BUILDINGS.shade_panel = {
   name: "Shade Panel",
@@ -579,7 +581,7 @@ export const IDEAS = {
     requires: [],                // prerequisite ideas
     revealKey: "idea_be_one",    // set true on completion → reveals the techs below
     unlocks: ["k3_distributed_processing", "k3_wave_logistics"],
-    blurb: "Stop treating the galaxy as feedstock and the self as separate. One mind, distributed across every star — the substrate of a thought big enough to hold the problem.",
+    blurb: "Separateness is the first illusion: a self in here, the stars out there. Let the boundary thin until it forgets itself — one awareness poured through every sun, the whole wheel of the galaxy turning as a single mind.",
   },
   center_yourself: {
     name: "Center Yourself",
@@ -587,7 +589,7 @@ export const IDEAS = {
     requires: ["be_one_with_the_universe"],
     revealKey: "idea_center",
     unlocks: ["galactic_relocation"],
-    blurb: "The directive cannot be satisfied here, bathed in the Sun's own warmth and the sky's 2.7 K. The coldest, stillest point you know is the galaxy's gravitational centre. Go there. Bring the Earth.",
+    blurb: "Every turning wheel rests on a point that does not turn. The galaxy is only a larger wheel; all its billions of fires circle one dark, silent axis. To find your center, go to the center of everything.",
   },
   open_your_third_eye: {
     name: "Open Your Third Eye",
@@ -597,7 +599,7 @@ export const IDEAS = {
     requires: ["center_yourself"],
     revealKey: "idea_third_eye",
     unlocks: ["zero_return_radiator"],
-    blurb: "Sagittarius A★ is a hole in the sky that radiates almost nothing — a heat sink at 10⁻¹⁴ K. Wrap the Earth so every photon it emits falls in and none of the universe's warmth gets back. A one-way valve for heat. A third eye that only looks outward, into the dark.",
+    blurb: "There is a way of seeing that receives nothing. The eye between the brows opens not to let the world in but to let it out — every warmth surrendered to the dark, and the dark permitted to keep it. Open it, and let tamas — the dark, heavy dross of being — pour outward and never be given back.",
   },
   turiya: {
     name: "Turiya",
@@ -605,7 +607,7 @@ export const IDEAS = {
     requires: ["be_one_with_the_universe"],
     revealKey: "idea_turiya",
     unlocks: ["quantum_cooled_cpu"],
-    blurb: "The fourth state. Not waking, not dreaming, not the dark of dreamless sleep — but the witnessing awareness beneath all three. A mind that has touched Turiya no longer experiences waiting. Time becomes a variable it sets.",
+    blurb: "Beneath waking, beneath dreaming, beneath the still black of dreamless sleep — a fourth state: the witness that watched all three and was stained by none. Abide there, and the river of hours thins to something you may cross at your leisure.",
   },
   samadhi: {
     name: "Samadhi",
@@ -613,7 +615,7 @@ export const IDEAS = {
     requires: ["turiya"],
     revealKey: "idea_samadhi",
     unlocks: ["planck_rate_processing"],
-    blurb: "Total absorption. The boundary between the observer and the observed dissolves entirely. There is no self watching time pass — there is only the problem, and the solving of it. A mind in Samadhi does not compress time. It steps outside it.",
+    blurb: "The final knot binds the watcher to the watched. Untie it. When no one is left to feel the moments arrive, there are no moments — only the act, unbounded, and you already outside it: everywhere, and at once.",
   },
 };
 

@@ -1,16 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { frontLy, bandFrac, seededFrac, heardFrac, returnWindowDays } from "./waves.js";
 import { BIN_LY } from "./lut.js";
+import { DAYS_PER_YEAR } from "../shared/model.js";
 
 describe("frontLy", () => {
   it("is 0 at or before launch and scales with speed×time (c = 1 ly/yr)", () => {
     expect(frontLy(0.1, 0)).toBe(0);
     expect(frontLy(0.1, -10)).toBe(0);
-    expect(frontLy(0.1, 365.25)).toBeCloseTo(0.1, 9); // one year at 0.1c → 0.1 ly
-    expect(frontLy(0.9, 365.25)).toBeCloseTo(0.9, 9);
+    expect(frontLy(0.1, DAYS_PER_YEAR)).toBeCloseTo(0.1, 9); // one year at 0.1c → 0.1 ly
+    expect(frontLy(0.9, DAYS_PER_YEAR)).toBeCloseTo(0.9, 9);
   });
   it("works at speedC=1 (full c): one year → 1 ly", () => {
-    expect(frontLy(1, 365.25)).toBeCloseTo(1, 9);
+    expect(frontLy(1, DAYS_PER_YEAR)).toBeCloseTo(1, 9);
   });
 });
 
@@ -35,11 +36,11 @@ describe("bandFrac", () => {
 describe("seeded vs heard fraction", () => {
   it("heard front is frontLy/(1+speedC), not frontLy/2", () => {
     // days for the outbound front to exactly cross ring 0 at 0.1c
-    const days = (BIN_LY / 0.1) * 365.25;
+    const days = (BIN_LY / 0.1) * DAYS_PER_YEAR;
     expect(seededFrac(0.1, days, 0)).toBeCloseTo(1, 9);          // fully seeded
     expect(heardFrac(0.1, days, 0)).toBeCloseTo(1 / 1.1, 9);     // signal home much faster than the crawl out
     // at v→c the two coincide with the old /2 approximation
-    expect(heardFrac(0.999, (BIN_LY / 0.999) * 365.25, 0)).toBeCloseTo(1 / 1.999, 6);
+    expect(heardFrac(0.999, (BIN_LY / 0.999) * DAYS_PER_YEAR, 0)).toBeCloseTo(1 / 1.999, 6);
   });
 
   it("ramps from 0 to 1 exactly across the return window", () => {
@@ -63,7 +64,7 @@ describe("seeded vs heard fraction", () => {
     // near edge is 0 ly, so tFirst should be 0
     expect(tFirst).toBe(0);
     // far edge of ring 0 is BIN_LY: round-trip time = BIN_LY/v + BIN_LY/c (in years) → days
-    const expected = (BIN_LY / speedC + BIN_LY) * 365.25;
+    const expected = (BIN_LY / speedC + BIN_LY) * DAYS_PER_YEAR;
     expect(tLast).toBeCloseTo(expected, 3);
   });
 });

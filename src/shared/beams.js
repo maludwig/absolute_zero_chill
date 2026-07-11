@@ -8,7 +8,11 @@
    state machine can be exhaustively unit-tested in isolation. Delivery — the metal
    actually arriving at Sol across the interstellar gap — is a separate concern. */
 
-export const BEAM_FIRE_DAYS = 365;    // a pulse fires for up to one game-year
+// NOTE: beams.js is a pure leaf that shared/model.js re-exports FROM, so it must not
+// import model (that would be a cycle). This 365 is the one DAYS_PER_YEAR site that
+// stays a literal for that reason — it means "one game-year" and tracks DAYS_PER_YEAR
+// by convention. If DAYS_PER_YEAR ever changes, update this too.
+export const BEAM_FIRE_DAYS = 365;    // a pulse fires for up to one game-year (= DAYS_PER_YEAR)
 export const BEAM_RELOAD_DAYS = 91;   // then reloads for ~a quarter-year before the next
 
 /* stepMassBeam — the Mass Driver's emission state machine, advanced one tick.

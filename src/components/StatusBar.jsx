@@ -47,7 +47,7 @@ export const StatusBar = observer(function StatusBar() {
           <span className="sb-item sb-metal"><FmtValue value={store.metal} unit=" T" /></span>
           <span className="sb-item sb-year">Yr {store.gameYear}</span>
           <span className="sb-item sb-temp">{fmtTemp(store.surfaceTemp)}</span>
-          {showFj && <span className="sb-item sb-fj">⏩ {fjDef.label}</span>}
+          {showFj && <span className="sb-item sb-fj">⏩ {fjDef?.label ?? "×" + store.explore.framejack}</span>}
           <span className="sb-item sb-queue">
             <span className="sb-q-icon" aria-hidden="true">⚒</span>
             {queueLen} · {queuePct}%

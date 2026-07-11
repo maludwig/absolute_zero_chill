@@ -11,4 +11,11 @@ import { App } from "./components/App.jsx";
 window.gameStore = store;
 window.makeGameStore = createStore;
 
+// If an autosave exists, don't apply it automatically — arm the boot prompt so the
+// player chooses Continue vs New Game (see ResumeChoiceModal). No save → fresh game,
+// straight into the prelude cold-open.
+try {
+  if (store.hasLocalSave()) store.showResumeChoice = true;
+} catch (e) { console.warn("[autosave] boot check failed:", e && e.message); }
+
 createRoot(document.getElementById("react-root")).render(<App />);

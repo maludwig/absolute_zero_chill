@@ -17,7 +17,7 @@ import { initMilestones, healMilestones } from "./milestones.js";
 import {
   EXPLORE_SYSTEMS, EXPLORE_DERIVED, systemReserve,
   DRIVER_MINED_GATE, harvesterStartCost, recycleDone, EXPLORE_DAYS_PER_SEC,
-  travelDays, streamDays, isPowerOfTen,
+  travelDays, streamDays, isPowerOfTen, DAYS_PER_YEAR,
   PROBE_COST, DRIVER_BUILD_SECONDS, DRIVER_SHIP_DAYS,
   stepMassBeam, deliverBeam,
 } from "./explore.js";
@@ -29,6 +29,9 @@ import { HOURS_PER_DAY } from "./power_helpers.js";
    non-reactive `flags` guard map) — getters, actions, and read-helpers are
    deliberately excluded. A save is { version, savedAt, state: {…STATE_KEYS} }. */
 export const SAVE_VERSION = 3;
+// localStorage key for the autosave (versioned in the value, not the key, so a
+// version bump still finds the old save and best-effort migrates it on load).
+export const SAVE_LOCAL_KEY = "zchill.autosave";
 
 /* Perf caps. Both the telemetry event stream and the narrative log are otherwise
    append-only and were the cause of a late-game slowdown: over an hour of auto-build
@@ -197,6 +200,8 @@ export function createStore() {
       eventChains: [],           // ambient news chains — rebuilt from ALL_NEWS_CHAINS on init/load, never persisted (holds function refs)
       eventChainIdx: 0,          // round-robin cursor into eventChains
       showPreludeModal: true,    // reactive: the cold-open prelude, shown once at game start
+      showResumeChoice: false,   // reactive, non-persisted: the boot "Continue vs New Game"
+                                 // prompt, armed by main.jsx only when an autosave exists.
       showActOneModal: false,    // reactive: pre-industrial-reached modal
       showAct1CompleteModal: false, // reactive: chat check-in, shown once on the first Shade Panel
       showUserMatrixModal: false, // reactive: chat check-in, shown once on the first User Matrix Installation
@@ -268,8 +273,8 @@ export function createStore() {
       },
 
       get coreTemp() { return this.coreHeat / CORE.heatCapacity; },
-      // the in-game calendar: starts at the browser's current year, +1 per 365 days
-      get gameYear() { return START_YEAR + Math.floor(this.explore.day / 365); },
+      // the in-game calendar: starts at the browser's current year, +1 per game-year
+      get gameYear() { return START_YEAR + Math.floor(this.explore.day / DAYS_PER_YEAR); },
       // which framejack speeds are available, by research (the toggle's buttons).
       // Built up cumulatively — each tier requires its own tech AND the Brain for ×100+.
       // Higher tiers imply ×100: they build on the same underclocking foundation.
@@ -302,7 +307,7 @@ export function createStore() {
       // the Black Eye shades the CMB, dropping the floor from 2.7 K to Sgr A★'s Hawking glow.
       get cmbrDefeated() { return (this.owned.black_eye_of_sagittarius || 0) >= 1; },
       // Earth's fall to the galactic centre: stateless, derived from the departure day.
-      get relocateDurationDays() { return (CONFIG.relocateDistanceLy / CONFIG.relocateSpeedC) * 365.25; },
+      get relocateDurationDays() { return (CONFIG.relocateDistanceLy / CONFIG.relocateSpeedC) * DAYS_PER_YEAR; },
       get relocating() { return this.galaxy.relocateDay0 != null && this.relocationProgress < 1; },
       get relocationProgress() {
         if (this.galaxy.relocateDay0 == null) return 0;
@@ -549,25 +554,30 @@ export function createStore() {
       // so a ×16 order simply builds as many as you can afford (never nothing).
       enqueue(id, count) {
         count = count || 1;
-        // Hard invariant: a build order is either a MULTS order (a power of ten) or a
-        // Duplication order (×2 — "queue as many as you already own", clamped to the
-        // building's remaining capacity). A ×16 multithreaded order goes through
-        // enqueueMultithreaded, which divides back down to one of those two shapes
-        // before landing here. Anything else is a caller bug — e.g. a clamped batch
-        // misread as multithreaded, which queued sixteen jobs of 0.5625 of a building.
-        // Throw loudly rather than quietly build a fraction of a structure.
+        // Hard invariant: a build order is one of three legal shapes —
+        //   • a MULTS order (a power of ten),
+        //   • a Duplication order (×2 — "queue as many as you already own", clamped to
+        //     remaining capacity),
+        //   • a top-off order that exactly fills a capped building to its max
+        //     (count === remainingCapacity). This is what a batch button on a near-full
+        //     capped building produces: a ×1000 clamped to the 60 slots left is a legal
+        //     order even though 60 isn't a power of ten.
+        // A ×16 multithreaded order goes through enqueueMultithreaded, which divides back
+        // down to one of these shapes before landing here. Anything else is a caller bug —
+        // e.g. a clamped batch misread as multithreaded, which queued sixteen jobs of
+        // 0.5625 of a building. Throw loudly rather than quietly build a fraction.
         //
-        // (remainingCapacity is Infinity for uncapped buildings, so the doubling test is
-        // just `count === owned` there, and stays true across all 16 multithreaded
-        // iterations. For capped ones, enqueueMultithreaded's own `cap < count` guard
-        // stops the loop before the clamp could drift.)
+        // (remainingCapacity is Infinity for uncapped buildings, so neither the doubling
+        // nor the top-off test can fire spuriously there — Infinity !== any finite count.)
         const ownedNow = this.owned[id] || 0;
-        const isDoubling = ownedNow > 0 && count === Math.min(ownedNow, this.remainingCapacity(id));
-        if (!isPowerOfTen(count) && !isDoubling) {
+        const capNow = this.remainingCapacity(id);
+        const isDoubling = ownedNow > 0 && count === Math.min(ownedNow, capNow);
+        const isTopOff = Number.isFinite(capNow) && count === capNow;
+        if (!isPowerOfTen(count) && !isDoubling && !isTopOff) {
           throw new Error(
-            `enqueue("${id}", ${count}): count must be a power of ten, or a Duplication ` +
-            `doubling of the ${ownedNow} already owned (got ${count}). ` +
-            `A ×16 multithreaded order must go through enqueueMultithreaded.`
+            `enqueue("${id}", ${count}): count must be a power of ten, a Duplication ` +
+            `doubling of the ${ownedNow} already owned, or a top-off to the building's max ` +
+            `(got ${count}). A ×16 multithreaded order must go through enqueueMultithreaded.`
           );
         }
         if (!BUILDINGS[id] || !this.buildingUnlocked(id)) return;
@@ -628,12 +638,24 @@ export function createStore() {
       setBreaker(id, on) {
         if (!(id in this.breakerOn)) return;
         this.breakerOn[id] = !!on;
-        this.pushTelemetry({ type: "action", action: "set_breaker", building_id: id, on: !!on, ...this._rates() });
       },
 
       dismissPreludeModal() {
         this.showPreludeModal = false;
         this.pushTelemetry({ type: "milestone", event: "prelude_dismissed", ...this._rates() });
+      },
+      // Boot choice — the player picked "Continue" on the resume prompt: apply the
+      // autosave onto this store. If the load fails for any reason, fall through to a
+      // fresh game (the prelude will still be showing). Either way, clear the prompt.
+      resumeSavedGame() {
+        this.loadFromLocal();
+        this.showResumeChoice = false;
+      },
+      // Boot choice — "New Game": drop the autosave and keep the fresh store as-is, so
+      // the normal cold-open prelude plays. (The next autosave tick will write the new run.)
+      startNewGame() {
+        this.clearLocalSave();
+        this.showResumeChoice = false;
       },
       dismissActOneModal() {
         this.showActOneModal = false;
@@ -697,7 +719,6 @@ export function createStore() {
         if (techs.includes(this.research.selected)) this.research.selected = null;
         this.devFramejack = true;
         this.pushLog("⏩ Framejack calibration bypassed — every speed unlocked.", "cyan");
-        this.pushTelemetry({ type: "action", action: "dev_unlock_framejack", ...this._rates() });
       },
       // ---- dev toolbar (10 Sun clicks) ----
       toggleDevMode() { this.devMode = !this.devMode; },
@@ -785,7 +806,6 @@ export function createStore() {
         const cost = harvesterStartCost(cat, d.asteroidMass);
         if (this.sysReserve(name) < cost) return;
         st.phase = "building"; st.t = 0; st.tau = 0;
-        this.pushTelemetry({ type: "action", action: "build_harvester", system_name: name, category: cat, ...this._rates() });
       },
       recycleHarvester(name, cat) {
         const s = this.explore.sys[name];
@@ -901,7 +921,6 @@ export function createStore() {
         const job = this.buildQueue.find((j) => j.uid === uid);
         if (!job) return;
         job.progress += this.playerBuildPower;
-        this.pushTelemetry({ type: "action", action: "assist", building_id: job.id, job_count: job.count, ...this._rates() });
         this.resolveBuilds();
       },
 
@@ -922,14 +941,11 @@ export function createStore() {
       selectResearch(id) {
         if (!TECHS[id] || !this.techUnlocked(id) || this.techDone(id)) return;
         this.research.selected = this.research.selected === id ? null : id;
-        if (this.research.selected === id)
-          this.pushTelemetry({ type: "action", action: "select_research", tech_id: id, ...this._rates() });
       },
 
       assistResearch(id) {
         if (!TECHS[id] || !this.techUnlocked(id) || this.techDone(id)) return;
         this.research.progress[id] += this.playerResearchPower;
-        this.pushTelemetry({ type: "action", action: "assist_research", tech_id: id, ...this._rates() });
         this.finishTechIfDone(id);
       },
       // Clicking a research row does both jobs at once: focus it (so idle Replicas and
@@ -939,7 +955,6 @@ export function createStore() {
         if (!TECHS[id] || !this.techUnlocked(id) || this.techDone(id)) return;
         this.research.selected = id;
         this.research.progress[id] += this.playerResearchPower;
-        this.pushTelemetry({ type: "action", action: "focus_assist_research", tech_id: id, ...this._rates() });
         this.finishTechIfDone(id);
       },
 
@@ -949,7 +964,12 @@ export function createStore() {
           const total = BUILDINGS[job.id].workload * job.count;
           if (job.progress >= total) {
             const was = this.owned[job.id] || 0;
-            if (was === 0) this.breakerOn[job.id] = true; // first of its kind comes online powered
+            if (was === 0) {
+              this.breakerOn[job.id] = true; // first of its kind comes online powered
+              // First-of-its-kind completion — one beat the first time each building type
+              // is finished (not on every subsequent build). Bounded by building count.
+              this.pushTelemetry({ type: "first_building_complete", building_id: job.id, ...this._rates() });
+            }
             this.owned[job.id] += job.count;
             this.buildQueue.splice(i, 1);
             if (was === 0) this.notify(job.id + "_built"); // first one exists → reveal listeners
@@ -962,6 +982,9 @@ export function createStore() {
           this.research.done[id] = true;
           if (this.research.selected === id) this.research.selected = null;
           this.notify(id + "_researched");
+          // One beat per tech as it completes (fires once — this.research.done gates it
+          // out of the tick's finishTechIfDone sweep afterward). Bounded by tech count.
+          this.pushTelemetry({ type: "tech_research_complete", tech_id: id, ...this._rates() });
         }
       },
 
@@ -1000,7 +1023,7 @@ export function createStore() {
       // loop checks this and skips; tick() itself stays pure so tests and catch-up
       // logic can drive the simulation directly.
       get paused() {
-        return this.showPreludeModal || this.showActOneModal || this.showAct1CompleteModal || this.showUserMatrixModal || this.showArkModal || this.showActTwoModal || this.showFinaleModal;
+        return this.showResumeChoice || this.showPreludeModal || this.showActOneModal || this.showAct1CompleteModal || this.showUserMatrixModal || this.showArkModal || this.showActTwoModal || this.showFinaleModal;
       },
 
       // advance the power grid one step: charge/drain the cell, and trip or restore
@@ -1456,6 +1479,51 @@ export function createStore() {
           null,
           2
         );
+      },
+      // --- Autosave to localStorage -----------------------------------------
+      // Mobile browsers evict backgrounded tabs, wiping in-memory state — so we
+      // persist the same versioned save string to localStorage and reload it on
+      // boot. All access is wrapped: private-mode / quota-full / disabled storage
+      // throw, and a save must never take down the game.
+      saveToLocal() {
+        try {
+          localStorage.setItem(SAVE_LOCAL_KEY, this.saveText());
+          return true;
+        } catch (e) {
+          console.warn("[autosave] could not write to localStorage:", e && e.message);
+          return false;
+        }
+      },
+      // Load the autosave if one exists. Returns true only if a save was found AND
+      // applied. A corrupt/blocked entry logs and returns false (→ fresh game).
+      loadFromLocal() {
+        let text = null;
+        try {
+          text = localStorage.getItem(SAVE_LOCAL_KEY);
+        } catch (e) {
+          console.warn("[autosave] could not read localStorage:", e && e.message);
+          return false;
+        }
+        if (!text) return false;
+        return this.loadSave(text);
+      },
+      clearLocalSave() {
+        try { localStorage.removeItem(SAVE_LOCAL_KEY); } catch { /* ignore */ }
+      },
+      // True if a non-empty autosave exists, WITHOUT applying it — lets the boot flow
+      // offer Continue vs New Game before touching the fresh store.
+      hasLocalSave() {
+        try { return !!localStorage.getItem(SAVE_LOCAL_KEY); } catch { return false; }
+      },
+      // The autosave's savedAt (ISO string) if present and parseable, else null. Used by
+      // the resume prompt to show when the run was last saved. Never throws.
+      localSaveSavedAt() {
+        try {
+          const t = localStorage.getItem(SAVE_LOCAL_KEY);
+          if (!t) return null;
+          const at = JSON.parse(t).savedAt;
+          return typeof at === "string" ? at : null;
+        } catch { return null; }
       },
       // parse + apply a save string. Corrupted JSON aborts with a console error;
       // structural problems are reported but applied best-effort. Returns ok bool.

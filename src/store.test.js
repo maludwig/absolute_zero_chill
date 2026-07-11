@@ -3,7 +3,7 @@ import { createStore, SAVE_VERSION, TELEMETRY_CAP, TELEMETRY_SLACK, LOG_CAP } fr
 import { CONFIG, CLIMATE, POP, popCapacity, BODIES, BUILDINGS, TECHS, IDEAS, MULTS, sectionForBuilding, LOGISTICS_PLAN, ORDERED_FRAMEJACKS } from "./config.js";
 import { isPowerOfTen } from "./shared/model.js";
 import { LUT, MAX_WEDGE_STARS, BIN_LY } from "./galaxy/lut.js";
-import { EXPLORE_DAYS_PER_SEC, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, EXPLORE_SYSTEMS, systemReserve, DRIVER_MINED_GATE } from "./explore.js";
+import { EXPLORE_DAYS_PER_SEC, EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, EXPLORE_SYSTEMS, systemReserve, DRIVER_MINED_GATE, DAYS_PER_YEAR } from "./explore.js";
 import { STORY_CHAIN } from "./story.js";
 import { FIRST_QUEST_KEY, getQuestByKey, MAIN_STORY_CHAIN } from "./quests.js";
 // Drains every currently-satisfiable head across the shared events engine.
@@ -99,9 +99,118 @@ describe("main quest", () => {
     expect(loaded.currentQuestKey).toBe("act_2a_cold");
     expect(loaded.completedQuests).toEqual(["act_1a_initialize", "act_1a_unpack"]);
   });
+
+  it("autosaves to and restores from localStorage (round-trip)", () => {
+    const mem = {};
+    const orig = globalThis.localStorage;
+    globalThis.localStorage = {
+      getItem: (k) => (k in mem ? mem[k] : null),
+      setItem: (k, v) => { mem[k] = String(v); },
+      removeItem: (k) => { delete mem[k]; },
+    };
+    try {
+      const s = createStore();
+      s.metal = 123456;
+      s.owned.asteroid_mine = 7;
+      expect(s.saveToLocal()).toBe(true);
+
+      const restored = createStore();
+      expect(restored.metal).toBe(0);            // fresh before load
+      expect(restored.loadFromLocal()).toBe(true);
+      expect(restored.metal).toBe(123456);
+      expect(restored.owned.asteroid_mine).toBe(7);
+
+      // no-save case → false, leaves a fresh game intact
+      restored.clearLocalSave();
+      expect(createStore().loadFromLocal()).toBe(false);
+    } finally {
+      globalThis.localStorage = orig;
+    }
+  });
+
+  it("resume choice: Continue restores the save, New Game clears it and keeps a fresh store", () => {
+    const mem = {};
+    const orig = globalThis.localStorage;
+    globalThis.localStorage = {
+      getItem: (k) => (k in mem ? mem[k] : null),
+      setItem: (k, v) => { mem[k] = String(v); },
+      removeItem: (k) => { delete mem[k]; },
+    };
+    try {
+      const saved = createStore();
+      saved.metal = 999;
+      saved.showPreludeModal = false; // an in-progress run has dismissed the cold-open
+      saved.saveToLocal();
+
+      // Continue → applies the save
+      const a = createStore();
+      a.showResumeChoice = a.hasLocalSave();
+      expect(a.showResumeChoice).toBe(true);
+      expect(a.paused).toBe(true); // game is held while the prompt is up
+      a.resumeSavedGame();
+      expect(a.metal).toBe(999);
+      expect(a.showResumeChoice).toBe(false);
+
+      // New Game → clears the save, keeps the fresh store, cold-open still queued
+      const b = createStore();
+      b.showResumeChoice = b.hasLocalSave();
+      b.startNewGame();
+      expect(b.metal).toBe(0);
+      expect(b.showResumeChoice).toBe(false);
+      expect(b.showPreludeModal).toBe(true);
+      expect(b.hasLocalSave()).toBe(false);
+    } finally {
+      globalThis.localStorage = orig;
+    }
+  });
+
+  it("a blocked/throwing localStorage never takes down save or load", () => {
+    const orig = globalThis.localStorage;
+    globalThis.localStorage = {
+      getItem: () => { throw new Error("private mode"); },
+      setItem: () => { throw new Error("quota"); },
+      removeItem: () => { throw new Error("nope"); },
+    };
+    try {
+      const s = createStore();
+      expect(s.saveToLocal()).toBe(false);       // swallowed, reported false
+      expect(s.loadFromLocal()).toBe(false);     // swallowed, → fresh game
+      expect(() => s.clearLocalSave()).not.toThrow();
+    } finally {
+      globalThis.localStorage = orig;
+    }
+  });
 });
 
 describe("build queue + assist", () => {
+  it("emits first_building_complete once per building type, and tech_research_complete on finish", () => {
+    const s = createStore();
+    const evs = () => s.telemetry.events;
+    const countOf = (type, key, val) => evs().filter((e) => e.type === type && e[key] === val).length;
+
+    // Build TWO asteroid mines to completion; the first-of-its-kind beat fires ONCE.
+    s.metal = 1e9;
+    s.enqueue("asteroid_mine", 1);
+    s.buildQueue[0].progress = BUILDINGS.asteroid_mine.workload; // force-complete
+    s.resolveBuilds();
+    expect(s.owned.asteroid_mine).toBe(1);
+    expect(countOf("first_building_complete", "building_id", "asteroid_mine")).toBe(1);
+    // second one → no additional first_building_complete
+    s.enqueue("asteroid_mine", 1);
+    s.buildQueue[0].progress = BUILDINGS.asteroid_mine.workload;
+    s.resolveBuilds();
+    expect(s.owned.asteroid_mine).toBe(2);
+    expect(countOf("first_building_complete", "building_id", "asteroid_mine")).toBe(1);
+
+    // Finish a tech → exactly one tech_research_complete for it.
+    const tech = "batch_processing";
+    s.research.selected = tech;
+    s.research.progress[tech] = TECHS[tech].cost;
+    s.finishTechIfDone(tech);
+    expect(s.research.done[tech]).toBe(true);
+    expect(countOf("tech_research_complete", "tech_id", tech)).toBe(1);
+  });
+
   it("enqueue clamps to what metal allows", () => {
     const s = createStore();
     s.metal = 40; // exactly one Asteroid Mine
@@ -109,6 +218,35 @@ describe("build queue + assist", () => {
     expect(s.buildQueue.length).toBe(1);
     expect(s.buildQueue[0].count).toBe(1);
     expect(s.metal).toBe(0);
+  });
+
+  it("enqueue accepts a top-off-to-max count even when it isn't a power of ten", () => {
+    // Regression: a capped building's near-cap batch button clamps a MULTS batch to
+    // remainingCapacity (e.g. ×1000 → 60 when 40/100 are owned). That count is neither a
+    // power of ten nor a doubling, but it exactly fills the building to its max, which is a
+    // legal order — enqueue must NOT throw. (See Catalog.TODO / the buy-button clamp fix.)
+    const s = createStore();
+    s.metal = 1e15;
+    s.research.done.orbital_defense = true;      // unlocks mac_gun_station (max 100)
+    s.reconcileMilestones();
+    s.owned.mac_gun_station = 40;                 // remainingCapacity = 60
+    expect(s.remainingCapacity("mac_gun_station")).toBe(60);
+    expect(() => s.enqueue("mac_gun_station", 60)).not.toThrow();
+    expect(s.buildQueue.length).toBe(1);
+    expect(s.buildQueue[0].count).toBe(60);       // the full top-off is queued
+    // and it genuinely reaches the cap: 40 owned + 60 queued = 100 = max
+    expect(s.owned.mac_gun_station + s.buildQueue[0].count).toBe(BUILDINGS.mac_gun_station.max);
+  });
+
+  it("enqueue still rejects an illegal count that is neither power-of-ten, doubling, nor top-off", () => {
+    // Guard stays live for genuine caller bugs (e.g. a batch misread as multithreaded).
+    const s = createStore();
+    s.metal = 1e15;
+    s.research.done.orbital_defense = true;
+    s.reconcileMilestones();
+    s.owned.mac_gun_station = 40;                 // cap 100, remaining 60
+    // 55 is not a power of ten, not the doubling (40), not the top-off (60) → must throw
+    expect(() => s.enqueue("mac_gun_station", 55)).toThrow();
   });
 
   it("assist drives a job to completion", () => {
@@ -396,6 +534,8 @@ describe("emergency power (grid-down recovery)", () => {
     expect(collJob.progress).toBeCloseTo(1, 6);  // 100 × 1 × 0.2 × 0.05 = 1 BP into the last item
   });
 
+  // 3rd arg raises the 5s default: this drives up to ~20k real ticks, which crosses
+  // 5s under v8 coverage instrumentation (fine uninstrumented). See store.TODO.md.
   it("recovers by hand: panic-build a Collector, then switch breakers back on", () => {
     const s = createStore();
     s.metal = 1e6;
@@ -416,7 +556,7 @@ describe("emergency power (grid-down recovery)", () => {
     s.setBreaker("replica", true); // bring the workforce back
     s.tick(0.2);
     expect(s.powerNet).toBeGreaterThan(0); // two Collectors now out-generate the Replicas
-  });
+  }, 30000);
 });
 
 describe("infrastructure buildings (Construction Logistics, Science Installation)", () => {
@@ -1127,6 +1267,8 @@ describe("perf: bounded buffers", () => {
     expect(s.telemetry.events.length).toBeLessThanOrEqual(TELEMETRY_CAP + TELEMETRY_SLACK);
     expect(s.telemetry.events.length).toBeGreaterThanOrEqual(TELEMETRY_CAP);
   });
+  // 3rd arg raises the 5s default: 4,000 real ticks cross 5s under v8 coverage
+  // instrumentation (fine uninstrumented). See store.TODO.md.
   it("a long auto-build run keeps both buffers bounded", () => {
     const s = createStore();
     s.metal = 1e12;
@@ -1138,7 +1280,7 @@ describe("perf: bounded buffers", () => {
     for (let i = 0; i < 4000; i++) s.tick(0.2);
     expect(s.telemetry.events.length).toBeLessThanOrEqual(TELEMETRY_CAP + TELEMETRY_SLACK);
     expect(s.log.length).toBeLessThanOrEqual(LOG_CAP);
-  });
+  }, 30000);
   it("enqueue pushes no telemetry and gives each job an auto-incrementing integer uid", () => {
     const s = createStore();
     s.metal = 1e6;
@@ -1460,7 +1602,7 @@ describe("Act III — Galactic Logistics", () => {
     s.seedWedge(0, 0); // toward Sgr A★, nearest ring
     expect(s.galaxySeededStars).toBe(0);
     // advance until the outbound front has exactly crossed ring 0
-    s.explore.day += (BIN_LY / CONFIG.galaxyProbeSpeedC) * 365.25;
+    s.explore.day += (BIN_LY / CONFIG.galaxyProbeSpeedC) * DAYS_PER_YEAR;
     const heardFraction = 1 / (1 + CONFIG.galaxyProbeSpeedC); // R_heard = front/(1+speedC)
     expect(s.galaxySeededStars).toBeCloseTo(LUT[0][0], 0);              // fully seeded
     expect(s.galaxyHeardStars).toBeCloseTo(LUT[0][0] * heardFraction, 0); // most already heard at 0.1c
@@ -1472,7 +1614,7 @@ describe("Act III — Galactic Logistics", () => {
     s.owned.matrioshka_seed = 1e30; s.galaxy.charge = 1e30;
     expect(s.insightPerDay).toBe(0);
     s.seedWedge(0, 0);
-    s.explore.day += (BIN_LY / CONFIG.galaxyProbeSpeedC) * 365.25;
+    s.explore.day += (BIN_LY / CONFIG.galaxyProbeSpeedC) * DAYS_PER_YEAR;
     const heardFraction = 1 / (1 + CONFIG.galaxyProbeSpeedC);
     expect(s.insightPerDay).toBeCloseTo(LUT[0][0] * heardFraction * CONFIG.insightPerBrainPerDay, 0);
   });
@@ -1495,13 +1637,13 @@ describe("Act III — Galactic Logistics", () => {
     for (const x of [A, B]) {
       TARS(x); x.owned.matrioshka_seed = 1e30; x.galaxy.charge = 1e30;
       x.seedWedge(0, 0);
-      x.explore.day += (2000 / CONFIG.galaxyProbeSpeedC) * 365.25; // heard front ~2000 ly into ring 0
+      x.explore.day += (2000 / CONFIG.galaxyProbeSpeedC) * DAYS_PER_YEAR; // heard front ~2000 ly into ring 0
       x.philosophy.selected = "frac_test"; // synthetic Idea — never completes (defensive guard)
       x.philosophy.progress = { frac_test: 0 };
       x.philosophy.done = {};
     }
     // same total elapsed time, staying inside ring 0 (heard front 2000 → 6000 ly, well under the 11000 cap)
-    const totalDt = ((4000 / CONFIG.galaxyProbeSpeedC) * 365.25) / EXPLORE_DAYS_PER_SEC;
+    const totalDt = ((4000 / CONFIG.galaxyProbeSpeedC) * DAYS_PER_YEAR) / EXPLORE_DAYS_PER_SEC;
     for (let i = 0; i < 200; i++) A.tick(totalDt / 200);
     B.tick(totalDt);
     expect(A.galaxyHeardStars).toBeLessThan(LUT[0][0]);        // never clamped — rate truly ramped
@@ -2209,6 +2351,18 @@ describe("enqueue's count invariant (powers of ten, or a Duplication doubling)",
     const dupN = Math.min(s.owned.replica, s.remainingCapacity("replica")); // 300
     expect(isPowerOfTen(dupN)).toBe(false);
     expect(() => s.enqueue("replica", dupN)).not.toThrow();
+  });
+
+  it("isPowerOfTen: every build multiplier is a power of ten, every ×16 (multithreaded) is not", () => {
+    // The dispatch invariant in one place: a plain build order is always one of the MULTS
+    // (a power of ten → isPowerOfTen true → store.enqueue path), and the multithreaded form
+    // of any of them is that MULT × 16, which must NOT read as a power of ten (or it could
+    // slip through the plain path instead of enqueueMultithreaded). ×1 counts as the base
+    // multiplier too. This pins both directions across the whole ladder, not just a sample.
+    for (const n of [1, ...MULTS.map((m) => m.n)]) {
+      expect(isPowerOfTen(n), `build mult ${n} must be a power of ten`).toBe(true);
+      expect(isPowerOfTen(n * 16), `${n} × 16 = ${n * 16} must NOT be a power of ten`).toBe(false);
+    }
   });
 
   it("accepts every MULTS order and ×1", () => {

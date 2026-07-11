@@ -4,8 +4,39 @@ import { fmtTemp } from "../prelude.js";
 import { ChatModal } from "./ChatModal.jsx";
 import chats from "../story/chats.json";
 
+/* ResumeChoiceModal — the boot prompt shown (before the prelude) only when an autosave
+   exists. Continue applies the save; New Game discards it and lets the cold-open play. */
+export const ResumeChoiceModal = observer(function ResumeChoiceModal() {
+  if (!store.showResumeChoice) return null;
+  const savedAt = store.localSaveSavedAt();
+  let when = null;
+  if (savedAt) {
+    const d = new Date(savedAt);
+    if (!isNaN(d)) when = d.toLocaleString();
+  }
+  return (
+    <div className="modal-scrim">
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-eyebrow">Absolute Zero Chill</div>
+        <h2 className="resume-title">Saved run found</h2>
+        <p className="resume-sub">
+          {when ? <>You have a game in progress, last saved <b>{when}</b>.</> : <>You have a game in progress.</>}
+        </p>
+        <button className="btn modal-btn" onClick={() => store.resumeSavedGame()}>Continue</button>
+        <button
+          className="btn modal-btn resume-new"
+          onClick={() => { if (window.confirm("Start a new game? Your saved run will be discarded.")) store.startNewGame(); }}
+        >
+          New Game
+        </button>
+      </div>
+    </div>
+  );
+});
+
 /* PreludeModal — the cold open. */
 export const PreludeModal = observer(function PreludeModal() {
+  if (store.showResumeChoice) return null; // resume prompt takes precedence at boot
   if (!store.showPreludeModal) return null;
   return (
     <ChatModal

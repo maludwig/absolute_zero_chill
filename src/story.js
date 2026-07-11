@@ -11,6 +11,7 @@
    once its last item fires. */
 
 import { MAIN_STORY_CHAIN } from "./quests.js";
+import { FRAMEJACKS } from "./config.js";
 
 // Parallel to the main spine: the two Framejack-speed unlocks. Each needs an Idea
 // gated on Philosophy access (which only opens once the Brain is built), so these
@@ -20,12 +21,12 @@ const FRAMEJACK_CHAIN = [
   {
     key: "quantumCpu",
     test: (s) => s.research.done.quantum_cooled_cpu,
-    action: (s) => s.pushLog("Quantum-Cooled CPU online. Framejack ×10,000 unlocked — ten millennia per real second.", "cyan"),
+    action: (s) => s.pushLog(`Quantum-Cooled CPU online. Framejack ${FRAMEJACKS.quantum_cooled_cpu.label} unlocked — ten millennia per real second.`, "cyan"),
   },
   {
     key: "planckRate",
     test: (s) => s.research.done.planck_rate_processing,
-    action: (s) => s.pushLog("Planck-Rate Processing online. Framejack ×100,000 unlocked — the fastest clock physics permits.", "cyan"),
+    action: (s) => s.pushLog(`Planck-Rate Processing online. Framejack ${FRAMEJACKS.planck_rate_processing.label} unlocked — the fastest clock physics permits.`, "cyan"),
   },
 ];
 

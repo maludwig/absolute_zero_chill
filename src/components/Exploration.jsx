@@ -3,7 +3,7 @@ import { store } from "../store.js";
 import {
   EXPLORE_DERIVED, EXPLORE_SYS_BY_NAME, EXPLORE_SYSTEMS, CATEGORY_META,
   DRIVER_MINED_GATE, DRIVER_BUILD_SECONDS, harvesterStartCost, PROBE_COST,
-  K_RESERVE, arrivalLoopSpeed, travelDays, streamDays,
+  K_RESERVE, arrivalLoopSpeed, travelDays, streamDays, DAYS_PER_YEAR,
 } from "../explore.js";
 import { PoweredButton } from "./common.jsx";
 import { FmtValue } from "./FmtValue.jsx";
@@ -92,7 +92,7 @@ const SystemPanel = observer(function SystemPanel({ name }) {
 
   let topRow, sub;
   if (!arrived) {
-    const yrsLeft = Math.max(0, (travel - elapsed) / 365);
+    const yrsLeft = Math.max(0, (travel - elapsed) / DAYS_PER_YEAR);
     sub = <>{s.speed.toFixed(1)}c · <FmtValue value={yrsLeft} unit=" yr" /> to go</>;
     topRow = <SystemRow solIcon={SOL_ICON} destIcon={destIcon} right={distLabel}><ProbeTravelProgressBar total_distance={travel} current_distance={elapsed} speed={s.speed} /></SystemRow>;
   } else if (s.driver.phase === "done") {
