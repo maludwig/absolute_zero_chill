@@ -16,4 +16,13 @@ describe("DevBar", () => {
     expect(html).toContain("telemetry");
     runInAction(() => { store.devMode = false; }); // restore
   });
+  it("offers the Framejack unlock until it's used, then disables it", () => {
+    runInAction(() => { store.devMode = true; store.devFramejack = false; });
+    expect(renderToString(<DevBar />)).toContain("Unlock all Framejack");
+    runInAction(() => { store.devFramejack = true; });
+    const html = renderToString(<DevBar />);
+    expect(html).toContain("Framejack unlocked");
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Framejack unlocked/);
+    runInAction(() => { store.devMode = false; store.devFramejack = false; }); // restore
+  });
 });

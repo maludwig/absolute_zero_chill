@@ -429,7 +429,7 @@ BUILDINGS.shade_panel = {
   workload: 400,
   metalCost: 35000,
   sunBlot: 0.001, // blots 0.1% of the Sun
-  max: 1,         // initial cap — raised in stages by story.js's ACT_1B_STORY_CHAIN (5, then 1000)
+  max: 1,         // initial cap — raised in stages by quests.js's ACT_1B_STORY_QUESTS (5, then 1000)
   requires: ["thin_film"],
   desc: "A gossamer reflector. Each one dims the Sun by 0.1%. The Sun is only 100% large.",
 };

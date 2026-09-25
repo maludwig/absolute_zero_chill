@@ -7,6 +7,7 @@ const ACT_1A_STORY_QUESTS = [
     // the game renders under a modal and does NOT tick until Start is clicked, so
     // this quest can only fire on the first post-Start tick. Do not "fix" the test.
     key: "act_1a_initialize",
+    act: 1,
     questName: "Initialize",
     todoList: [
       { desc: "Click Start", test: (s) => true },
@@ -17,6 +18,7 @@ const ACT_1A_STORY_QUESTS = [
   },
   {
     key: "act_1a_unpack",
+    act: 1,
     questName: "Unpack",
     todoList: [
       { desc: "Unpack Solar Collector", test: (s) => s.owned.solar_collector >= 1 },
@@ -28,6 +30,7 @@ const ACT_1A_STORY_QUESTS = [
   },
   {
     key: "act_1a_grow",
+    act: 1,
     questName: "Grow",
     todoList: [
       { desc: "Research Replication", test: (s) => s.research.done.replication },
@@ -39,6 +42,7 @@ const ACT_1A_STORY_QUESTS = [
   },
   {
     key: "act_1a_shade",
+    act: 1,
     questName: "Shade",
     todoList: [
       { desc: "Research Thin-Film Reflectors", test: (s) => s.research.done.thin_film },
@@ -67,6 +71,7 @@ const applyArkCaps     = (s) => { s.buildingMaxOverrides.shade_panel = 1000; };
 const ACT_1B_STORY_QUESTS = [
   {
     key: "act_1b_scan",
+    act: 1,
     questName: "Scan",
     todoList: [
       { desc: "Research Cortical Scanning", test: (s) => s.research.done.cortical_scanning },
@@ -80,6 +85,7 @@ const ACT_1B_STORY_QUESTS = [
   },
   {
     key: "act_1b_simulate",
+    act: 1,
     questName: "Simulate",
     todoList: [
       { desc: "Research Cortex Simulation", test: (s) => s.research.done.cortex_simulation },
@@ -94,6 +100,7 @@ const ACT_1B_STORY_QUESTS = [
   },
   {
     key: "act_1b_ark",
+    act: 1,
     questName: "Ark",
     // The Ark re-instantiates the user, which can't happen until every mind on Earth
     // has been imaged (scanFrac >= 1) and the Ark itself is built and powered — so all
@@ -127,6 +134,7 @@ const ACT_1B_STORY_QUESTS = [
 const ACT_2A_STORY_QUESTS = [
   {
     key: "act_2a_preindustrial",
+    act: 2,
     questName: "Reverse",
     todoList: [
       { desc: "Cool the surface to pre-industrial (287 K)", test: (s) => s.surfaceTemp <= CLIMATE.tPreindustrial },
@@ -140,6 +148,7 @@ const ACT_2A_STORY_QUESTS = [
   },
   {
     key: "act_2a_cold",
+    act: 2,
     questName: "Cold",
     // revealed.defense is guaranteed here: this quest can only be reached after
     // act_2a_preindustrial completes (chain order), which sets it.
@@ -153,6 +162,7 @@ const ACT_2A_STORY_QUESTS = [
   },
   {
     key: "act_2a_snowball",
+    act: 2,
     questName: "Snowball",
     todoList: [
       { desc: "Cool the surface to 250 K", test: (s) => s.surfaceTemp <= 250 },
@@ -164,6 +174,7 @@ const ACT_2A_STORY_QUESTS = [
   },
   {
     key: "act_2a_needle",
+    act: 2,
     questName: "Needle",
     todoList: [
       { desc: "Research Centrosphere Cooling", test: (s) => s.research.done.centrosphere },
@@ -189,6 +200,7 @@ const ACT_2A_STORY_QUESTS = [
 const ACT_2B_STORY_QUESTS = [
   {
     key: "act_2b_prime",
+    act: 2,
     questName: "Prime",
     todoList: [
       { desc: "Research Interstellar Probing", test: (s) => s.research.done.interstellar_probing },
@@ -201,6 +213,7 @@ const ACT_2B_STORY_QUESTS = [
   },
   {
     key: "act_2b_stellaser",
+    act: 2,
     questName: "Stellaser",
     todoList: [
       { desc: "Research Nicoll-Dyson Beaming", test: (s) => s.research.done.nicoll_dyson_beaming },
@@ -212,6 +225,7 @@ const ACT_2B_STORY_QUESTS = [
   },
   {
     key: "act_2b_launch",
+    act: 2,
     questName: "Launch",
     todoList: [
       { desc: "Launch a probe to a nearby star", test: (s) => Object.values(s.explore.sys).some((sys) => sys.launched) },
@@ -222,6 +236,7 @@ const ACT_2B_STORY_QUESTS = [
   },
   {
     key: "act_2b_harvest",
+    act: 2,
     questName: "Harvest",
     todoList: [
       { desc: "Build a harvester", test: (s) => Object.values(s.explore.sys).some((sys) =>
@@ -233,6 +248,7 @@ const ACT_2B_STORY_QUESTS = [
   },
   {
     key: "act_2b_beam",
+    act: 2,
     questName: "Beam",
     todoList: [
       { desc: "Build a mass driver", test: (s) => Object.values(s.explore.sys).some((sys) => sys.driver.phase !== "idle") },
@@ -243,6 +259,7 @@ const ACT_2B_STORY_QUESTS = [
   },
   {
     key: "act_2b_brain",
+    act: 2,
     questName: "Brain",
     // Owns the Brain reveals that used to live in story.js's firstBrain beat:
     // revealed.philosophy (the Philosophy panel). The ×100 Framejack research
@@ -270,6 +287,7 @@ const ACT_2B_STORY_QUESTS = [
 const ACT_3_STORY_QUESTS = [
   {
     key: "act_3_seed",
+    act: 3,
     questName: "Seed",
     todoList: [
       { desc: "Build a TARS Seed Launcher", test: (s) => s.owned.tars_seed_launcher >= 1 },
@@ -281,6 +299,7 @@ const ACT_3_STORY_QUESTS = [
   },
   {
     key: "act_3_sail",
+    act: 3,
     questName: "Sail",
     todoList: [
       { desc: "Build a Planetary Sail", test: (s) => s.owned.planetary_sail >= 1 },
@@ -292,6 +311,7 @@ const ACT_3_STORY_QUESTS = [
   },
   {
     key: "act_3_arrive",
+    act: 3,
     questName: "Arrive",
     todoList: [
       { desc: "Fall to Sagittarius A★", test: (s) => s.relocated },
@@ -302,6 +322,7 @@ const ACT_3_STORY_QUESTS = [
   },
   {
     key: "act_3_eye",
+    act: 3,
     questName: "Black Eye",
     todoList: [
       { desc: "Open the Black Eye of Sagittarius", test: (s) => s.cmbrDefeated },
@@ -312,6 +333,7 @@ const ACT_3_STORY_QUESTS = [
   },
   {
     key: "act_3_zero",
+    act: 3,
     questName: "Absolute Zero",
     todoList: [
       { desc: "Cool the surface below 2.7 K", test: (s) => s.cmbrDefeated && s.surfaceTemp < CLIMATE.cmbr - 0.01 },

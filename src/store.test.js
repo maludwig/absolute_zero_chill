@@ -914,7 +914,7 @@ describe("Construction Logistics plan editing", () => {
   });
 });
 
-describe("framejack easter egg", () => {
+describe("framejack dev unlock", () => {
   const allFramejacks = [1, ...ORDERED_FRAMEJACKS.map((x) => x.fj)];
   it("exposes only ×1 with no research and no Brain", () => {
     const s = createStore();
@@ -930,6 +930,18 @@ describe("framejack easter egg", () => {
     expect(s.research.done.quantum_cooled_cpu).toBe(true);
     expect(s.research.done.planck_rate_processing).toBe(true);
     expect(s.framejackLevels.map((x) => x.fj)).toEqual(allFramejacks);
+  });
+  it("unlockAllFramejack clears a selected Framejack research, since it's now done", () => {
+    const s = createStore();
+    s.research.selected = "efficient_underclocking";
+    s.unlockAllFramejack();
+    expect(s.research.selected).toBeNull();
+  });
+  it("unlockAllFramejack leaves an unrelated selected research alone", () => {
+    const s = createStore();
+    s.research.selected = "interstellar_probing";
+    s.unlockAllFramejack();
+    expect(s.research.selected).toBe("interstellar_probing");
   });
   it("is idempotent and persists across a save/load round-trip", () => {
     const s = createStore();

@@ -5,7 +5,8 @@ import { autoplayer } from "../autoplayer.js";
 
 /* DevBar — a fixed dev toolbar pinned to the bottom of the page, shown only in dev
    mode (toggle it with 5 clicks on the Sun). It surfaces the counters that reveal
-   runaway state and a button to profile the tick loop. Not part of the game UI. */
+   runaway state, a button to profile the tick loop, autoplay controls, and a
+   one-shot Framejack unlock. Not part of the game UI. */
 
 export const DevBar = observer(function DevBar() {
   const [autoRun, setAutoRun] = useState(false);
@@ -44,6 +45,14 @@ export const DevBar = observer(function DevBar() {
         title="Call Autoplay Once every 0.1s"
       >
         {autoRun ? "■ Auto-running…" : "▶ Auto ×0.1s"}
+      </button>
+      <button
+        className="devbar-btn"
+        disabled={store.devFramejack}
+        onClick={() => store.unlockAllFramejack()}
+        title="Mark every Framejack tech researched, no Brain needed"
+      >
+        {store.devFramejack ? "Framejack unlocked" : "Unlock all Framejack"}
       </button>
       <span className="devbar-stat">telemetry <b>{store.telemetry.events.length}</b></span>
       <span className="devbar-stat">log <b>{store.log.length}</b></span>

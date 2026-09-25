@@ -178,7 +178,7 @@ export function createStore() {
       buildQueue: [],            // [{ id, count, progress, uid }]
       logistics: { loopIdx: 0, plan: LOGISTICS_PLAN.map((s) => ({ ...s })) }, // Construction Logistics: editable auto-build plan + cursor
       multithread: false,        // ×16 build toggle (unlocked by Multithreading)
-      devFramejack: false,       // easter egg: all Framejack tiers unlocked (bypasses the Brain gate)
+      devFramejack: false,       // dev toolbar: all Framejack tiers unlocked (bypasses the Brain gate)
       devMode: false,            // easter egg (5 Sun clicks): shows the dev toolbar. Not persisted.
       _prof: null,               // when profiling: { phaseLabel: accumulatedMs }. Transient, non-observable.
       _profFrames: 0,            // ticks accumulated into _prof so far
@@ -469,8 +469,8 @@ export function createStore() {
       },
       // effective max for a building — usually just the static config value,
       // but a few caps are raised by story progress (e.g. Shade Panels start
-      // at 1 and get raised as the story chain advances — see story.js's
-      // ACT_1B_STORY_CHAIN, which is what actually sets buildingMaxOverrides).
+      // at 1 and get raised as the story chain advances — see quests.js's
+      // ACT_1B_STORY_QUESTS, which is what actually sets buildingMaxOverrides).
       buildingMax(id) {
         return this.buildingMaxOverrides[id] ?? BUILDINGS[id].max;
       },
@@ -710,7 +710,7 @@ export function createStore() {
         this.explore.framejack = n;
         this.pushTelemetry({ type: "action", action: "set_framejack", level: n, ...this._rates() });
       },
-      // Easter egg / dev shortcut (5 clicks on the Sun): unlock every Framejack tier
+      // Dev shortcut (the dev toolbar's "Unlock all Framejack" button): unlock every Framejack tier
       // at once. Marks the gating research done and flips devFramejack so the ×100+
       // tiers surface without a Sol Matrioshka Brain. Idempotent.
       unlockAllFramejack() {
@@ -718,7 +718,7 @@ export function createStore() {
           this.research.done[fj.tech] = true;
           this.notify(fj.tech + "_researched");
         }
-        if (this.research.selected in ORDERED_FRAMEJACKS) this.research.selected = null;
+        if (ORDERED_FRAMEJACKS.some((fj) => fj.tech === this.research.selected)) this.research.selected = null;
         this.devFramejack = true;
         this.pushLog("⏩ Framejack calibration bypassed — every speed unlocked.", "cyan");
       },
@@ -1588,8 +1588,8 @@ export function createStore() {
         // Backfill story-driven cap raises for legacy saves. Older saves either
         // predate buildingMaxOverrides being persisted, or were re-saved empty by
         // a build with the old reconcile drop-bug — either way the map comes back
-        // empty here. Reconstruct it from the same conditions story.js latches on
-        // (ACT_1B_STORY_CHAIN), in the same order so the Ark's cap wins over the
+        // empty here. Reconstruct it from the same conditions quests.js latches on
+        // (ACT_1B_STORY_QUESTS), in the same order so the Ark's cap wins over the
         // Scanner's. Skipped entirely when the save carried real overrides.
         if (Object.keys(this.buildingMaxOverrides).length === 0) {
           const o = {};
