@@ -714,7 +714,10 @@ export function createStore() {
       // at once. Marks the gating research done and flips devFramejack so the ×100+
       // tiers surface without a Sol Matrioshka Brain. Idempotent.
       unlockAllFramejack() {
-        for (const id in ORDERED_FRAMEJACKS) { this.research.done[id] = true; this.notify(id + "_researched"); }
+        for (const fj of ORDERED_FRAMEJACKS) {
+          this.research.done[fj.tech] = true;
+          this.notify(fj.tech + "_researched");
+        }
         if (this.research.selected in ORDERED_FRAMEJACKS) this.research.selected = null;
         this.devFramejack = true;
         this.pushLog("⏩ Framejack calibration bypassed — every speed unlocked.", "cyan");
