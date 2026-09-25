@@ -714,9 +714,8 @@ export function createStore() {
       // at once. Marks the gating research done and flips devFramejack so the ×100+
       // tiers surface without a Sol Matrioshka Brain. Idempotent.
       unlockAllFramejack() {
-        const techs = ["framejacking", "efficient_underclocking", "quantum_cooled_cpu", "planck_rate_processing"];
-        for (const id of techs) { this.research.done[id] = true; this.notify(id + "_researched"); }
-        if (techs.includes(this.research.selected)) this.research.selected = null;
+        for (const id in ORDERED_FRAMEJACKS) { this.research.done[id] = true; this.notify(id + "_researched"); }
+        if (this.research.selected in ORDERED_FRAMEJACKS) this.research.selected = null;
         this.devFramejack = true;
         this.pushLog("⏩ Framejack calibration bypassed — every speed unlocked.", "cyan");
       },

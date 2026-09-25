@@ -768,7 +768,7 @@ export const FRAMEJACKS = {
   framejacking: { label: "×10", tech: "framejacking", fj: 10 },
   efficient_underclocking: { label: "×100", tech: "efficient_underclocking", fj: 100 },
   quantum_cooled_cpu: { label: "×10k", tech: "quantum_cooled_cpu", fj: 10000 },
-  planck_rate_processing: { label: "×100M", tech: "planck_rate_processing", fj: 1e8 },
+  planck_rate_processing: { label: "×1M", tech: "planck_rate_processing", fj: 1e6 },
 };
 export const ORDERED_FRAMEJACKS = Object.values(FRAMEJACKS).sort((a, b) => a.fj - b.fj);
 

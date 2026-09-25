@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import { store } from "../store.js";
 import { TECHS } from "../config.js";
@@ -25,11 +25,57 @@ const TechRow = observer(function TechRow({ id }) {
   else if (!unlocked) control = <span className="tstatus req">locked</span>;
   else if (sel) control = <span className="tstatus foc">Focused</span>;
 
+  // ---- TEMPORARY TAP DIAGNOSTICS (remove once the dropped-tap cause is known) ----
+  // Purely passive: these listeners only log, they do NOT touch the click path — the
+  // onClick below is left exactly as it was so the bug reproduces unchanged.
+  //
+  // Two competing hypotheses produce different signatures in the log:
+  //   SCROLL-CANCEL — finger drifts > a few px, browser calls it a scroll: you'll see
+  //     "cancel" (or an end with a big move) and NO click line at all.
+  //   HANDLER-FLIP — a tick flips `actionable` between touchstart and click: you'll see
+  //     act@start=Y but act@end=N, an end with tiny movement, and either no click or a
+  //     click that reports handler=NONE.
+  const dbg = useRef({ x: 0, y: 0, maxMove: 0, actAtStart: false, t0: 0 });
+  const onTouchStart = (e) => {
+    const p = e.touches[0];
+    dbg.current = { x: p.clientX, y: p.clientY, maxMove: 0, actAtStart: actionable, t0: Date.now() };
+    store.pushLog(`[tap] START ${id} act=${actionable ? "Y" : "N"}`, "cyan");
+  };
+  const onTouchMove = (e) => {
+    const p = e.touches[0];
+    const d = Math.hypot(p.clientX - dbg.current.x, p.clientY - dbg.current.y);
+    if (d > dbg.current.maxMove) dbg.current.maxMove = d;
+  };
+  const onTouchEnd = () => {
+    const d = dbg.current;
+    store.pushLog(
+      `[tap] END ${id} move=${d.maxMove.toFixed(0)}px ${Date.now() - d.t0}ms act@start=${d.actAtStart ? "Y" : "N"} act@end=${actionable ? "Y" : "N"}`,
+      "warn"
+    );
+  };
+  const onTouchCancel = () => {
+    const d = dbg.current;
+    store.pushLog(`[tap] CANCEL(scroll) ${id} move=${d.maxMove.toFixed(0)}px — no click will fire`, "danger");
+  };
+  const onClickDbg = () => {
+    const d = dbg.current;
+    store.pushLog(
+      `[tap] CLICK ${id} move=${d.maxMove.toFixed(0)}px handler=${actionable ? "ATTACHED" : "NONE"} act@start=${d.actAtStart ? "Y" : "N"}`,
+      actionable ? "ok" : "danger"
+    );
+  };
+  // -------------------------------------------------------------------------------
+
   return (
     <div
       className={"trow" + (done ? " tdone" : "") + (sel ? " tsel" : "") + (actionable ? " clickable" : "")}
       onClick={actionable ? () => store.focusAndAssist(id) : undefined}
       title={actionable ? "Click to focus + assist" : undefined}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
+      onClickCapture={onClickDbg}
     >
       <div className="tinfo">
         <span className="tname">{t.name}</span>
