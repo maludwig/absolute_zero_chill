@@ -179,7 +179,7 @@ export function createStore() {
       logistics: { loopIdx: 0, plan: LOGISTICS_PLAN.map((s) => ({ ...s })) }, // Construction Logistics: editable auto-build plan + cursor
       multithread: false,        // ×16 build toggle (unlocked by Multithreading)
       devFramejack: false,       // easter egg: all Framejack tiers unlocked (bypasses the Brain gate)
-      devMode: false,            // easter egg (10 Sun clicks): shows the dev toolbar. Not persisted.
+      devMode: false,            // easter egg (5 Sun clicks): shows the dev toolbar. Not persisted.
       _prof: null,               // when profiling: { phaseLabel: accumulatedMs }. Transient, non-observable.
       _profFrames: 0,            // ticks accumulated into _prof so far
       _profTicksLeft: 0,         // ticks remaining to profile
@@ -722,7 +722,7 @@ export function createStore() {
         this.devFramejack = true;
         this.pushLog("⏩ Framejack calibration bypassed — every speed unlocked.", "cyan");
       },
-      // ---- dev toolbar (10 Sun clicks) ----
+      // ---- dev toolbar (5 Sun clicks) ----
       toggleDevMode() { this.devMode = !this.devMode; },
       // ---- reveal/enable notification core ----
       // Fire every watcher registered for `key`, then drop the key. A watcher that

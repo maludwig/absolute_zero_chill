@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { ChatModal } from "./ChatModal.jsx";
@@ -10,7 +10,7 @@ import { ChatModal } from "./ChatModal.jsx";
    has actually finished revealing (not merely mounted) — so START never renders
    on top of a still-streaming final block. User turns stream (deliberately
    slowly, ~500ms/word) rather than appearing instantly, so tests that reach
-   past one need to wait. */
+   past one need to wait — on fake timers, so the wait costs no wall-clock. */
 
 const MESSAGES = [
   { kind: "system", label: "System prompt", text: "sys text" },
@@ -29,7 +29,17 @@ function mount(node) {
   return { div, root, cleanup: () => { act(() => root.unmount()); document.body.removeChild(div); } };
 }
 
+// Advance fake time in small slices, each in its own act(), so React commits and
+// runs effects between slices — a block that mounts mid-advance starts its own
+// timer promptly, just as it would under real time.
+function advance(ms, slice = 10) {
+  for (let t = 0; t < ms; t += slice) act(() => { vi.advanceTimersByTime(slice); });
+}
+
 describe("ChatModal reveal engine", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
   it("reveals the system prompt immediately, then streams the user turn before gating on think", async () => {
     const { div, cleanup } = mount(<ChatModal eyebrow="E" chatMessages={MESSAGES} onClickStart={() => {}} />);
     // the system prompt is static and renders immediately
@@ -38,7 +48,7 @@ describe("ChatModal reveal engine", () => {
     expect(div.textContent).not.toContain("user q");
     expect([...div.querySelectorAll("button")].some((b) => b.textContent === "THINK")).toBe(false);
 
-    await act(async () => { await new Promise((r) => setTimeout(r, 1300)); });
+    advance(1300);
 
     // the user's turn has finished streaming; the think block is now gated behind a THINK button
     expect(div.textContent).toContain("user q");
@@ -61,7 +71,7 @@ describe("ChatModal reveal engine", () => {
     // the user turn is still streaming — START must not render yet
     expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(false);
 
-    await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+    advance(700);
 
     // now that the last message has finished streaming, START appears
     expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(true);
@@ -81,7 +91,7 @@ describe("ChatModal reveal engine", () => {
     // streaming just started — START must not render over the block
     expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(false);
 
-    await act(async () => { await new Promise((r) => setTimeout(r, 1700)); });
+    advance(1700);
 
     expect(div.textContent).toContain("one two three");
     expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(true);
@@ -92,7 +102,7 @@ describe("ChatModal reveal engine", () => {
     let started = false;
     const staticsOnly = [{ kind: "user", text: "u" }];
     const { div, cleanup } = mount(<ChatModal chatMessages={staticsOnly} onClickStart={() => { started = true; }} />);
-    await act(async () => { await new Promise((r) => setTimeout(r, 700)); });
+    advance(700);
     const start = [...div.querySelectorAll("button")].find((b) => b.textContent === "START");
     act(() => { start.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
     expect(started).toBe(true);
@@ -139,7 +149,7 @@ describe("ChatModal reveal engine", () => {
     const { div, cleanup } = mount(<ChatModal chatMessages={withResults} onClickStart={() => {}} />);
     const btn = [...div.querySelectorAll("button")].find((b) => b.textContent === "SEARCH");
     act(() => { btn.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 800)); });
+    advance(800);
     expect(div.querySelector(".pre-tool").textContent).toContain("resistance to carbon emission reduction");
     expect(div.querySelector(".pre-result-title").textContent).toBe("A Very Serious Headline");
     expect(div.querySelector(".pre-result-snippet").textContent).toBe("A very serious snippet.");
@@ -154,7 +164,7 @@ describe("ChatModal reveal engine", () => {
     expect(div.textContent).not.toContain("Timed Out");
     expect([...div.querySelectorAll("button")].some((b) => b.textContent === "START")).toBe(false);
 
-    await act(async () => { await new Promise((r) => setTimeout(r, 140)); });
+    advance(140);
 
     // after the spin, the timeout notice replaces the spinner and START appears
     expect(div.querySelector(".pre-spinner")).toBeNull();

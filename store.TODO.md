@@ -1,7 +1,7 @@
 # store.TODO.md — observations from a read-through + coverage pass
 
-Notes on `src/store.js` gathered while documenting it (see `store.FUNCTIONS.js`) and
-from a scoped coverage run. Nothing here is urgent — the file is in good shape (97%
+Notes on `src/store.js` gathered while documenting it and from a scoped coverage
+run. Nothing here is urgent — the file is in good shape (97%
 line / 89% branch coverage, all 453 tests green). This is a punch-list, roughly
 ordered by payoff. None of it is a correctness bug in normal play.
 

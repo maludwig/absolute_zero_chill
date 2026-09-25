@@ -5,11 +5,13 @@ set -e
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DIR_BASE="$(basename "$THIS_DIR")"
+source "$THIS_DIR/scripts/10_basics.sh"
 
 help() {
   echo "Usage: $0 [options]"
   echo "Options:"
-  echo "  -h, --help    Show this help message"
+  echo "  -h, --help              Show this help message"
+  echo "  -o, --output-dir DIR    Specify the output directory for the zip file (default: /tmp)"
 }
 
 OUTPUT_DIR="/tmp"

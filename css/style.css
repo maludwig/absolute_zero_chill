@@ -632,7 +632,7 @@ body:has(.wrap.power-failed){
    column of the .grid-main layout, matching the grid's 16px gap. */
 .col-stack{display:flex;flex-direction:column;gap:16px;align-items:stretch}
 
-/* Dev toolbar (10 Sun clicks) — fixed strip at the bottom of the viewport. */
+/* Dev toolbar (5 Sun clicks) — fixed strip at the bottom of the viewport. */
 .devbar{position:fixed;left:0;right:0;bottom:0;z-index:200;display:flex;align-items:center;gap:12px;
   padding:6px 12px;background:#0a1620;border-top:1px solid var(--line);
   font-size:11px;color:var(--dim);flex-wrap:wrap}

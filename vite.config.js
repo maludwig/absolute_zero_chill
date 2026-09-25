@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 
-// Build timestamp injected in place of the old Jinja {{ build_time }}.
+// Build timestamp, shown in the footer.
 const BUILD_TIME = new Date()
   .toISOString()
   .replace('T', '_')
@@ -12,7 +12,7 @@ const BUILD_TIME = new Date()
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   define: {
-    // App.jsx references BUILD_TIME as a bare global (was a Jinja var before).
+    // App.jsx references BUILD_TIME as a bare global.
     BUILD_TIME: JSON.stringify(BUILD_TIME),
   },
   build: {
